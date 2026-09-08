@@ -1,0 +1,11 @@
+{
+  "name": "codegavel-monorepo",
+  "private": true,
+  "scripts": {
+    "pocketbase:setup": "node scripts/setup-pocketbase.js",
+    "pocketbase:serve": "pocketbase\\pocketbase.exe serve",
+    "dev": "pnpm --filter web dev",
+    "worker:serve": "pnpm --filter c-runner start",
+    "build": "pnpm --filter web build"
+  }
+}

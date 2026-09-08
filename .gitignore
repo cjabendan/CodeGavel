@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Next.js build output
+.next/
+out/
+build/
+dist/
+
+# PocketBase data & executables
+pocketbase/pb_data/
+*.exe
+
+# Environment variables & OS files
+.env*.local
+.DS_Store
+Thumbs.db

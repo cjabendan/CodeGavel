@@ -1,11 +1,18 @@
 {
   "name": "codegavel-monorepo",
   "private": true,
+  "type": "module",
   "scripts": {
-    "pocketbase:setup": "node scripts/setup-pocketbase.js",
-    "pocketbase:serve": "pocketbase\\pocketbase.exe serve",
+    "pocketbase:setup": "node scripts/setup-pocketbase.mjs",
+    "pocketbase:bootstrap": "node scripts/bootstrap.mjs",
+    "pocketbase:serve": "pocketbase\\pocketbase.exe serve --http=0.0.0.0:8090",
     "dev": "pnpm --filter web dev",
     "worker:serve": "pnpm --filter c-runner start",
-    "build": "pnpm --filter web build"
+    "build": "pnpm --filter web build",
+    "lint": "biome check .",
+    "format": "biome format --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.12"
   }
 }

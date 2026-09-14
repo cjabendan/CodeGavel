@@ -4,7 +4,7 @@ import { ArrowRight, Eye, EyeOff, Lock, Mail, ShieldAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { authService } from "@/lib/services/authService";
+import { authService } from "@/lib/services/auth-services";
 
 export function LoginForm() {
   const router = useRouter();

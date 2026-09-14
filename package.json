@@ -14,5 +14,8 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.12"
+  },
+  "dependencies": {
+    "xlsx": "https://cdn.sheetjs.com/xlsx-latest/xlsx-latest.tgz"
   }
 }

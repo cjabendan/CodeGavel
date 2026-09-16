@@ -156,13 +156,14 @@ export const examService = {
     );
   },
 
+  // Run C code
   async runCode(sessionId: string, code: string): Promise<void> {
     await pb.collection("exam_sessions").update(
       sessionId,
       {
         current_code: code,
         execution_status: "pending",
-        terminal_output: "Compiling code and executing assertions...",
+        terminal_output: "⏳ Execution queued. Waiting for worker...",
       },
       { requestKey: null },
     );

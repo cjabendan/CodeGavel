@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle, Loader2, Terminal, Trash2, XCircle } from "lucide-react";
+import { Terminal, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
@@ -10,7 +10,7 @@ interface TerminalOutputProps {
   onClear?: () => void;
 }
 
-export function TerminalOutput({ output, executionStatus, onClear }: TerminalOutputProps) {
+export function TerminalOutput({ output, onClear }: TerminalOutputProps) {
   const [cleared, setCleared] = useState(false);
 
   const handleClear = () => {
@@ -31,39 +31,20 @@ export function TerminalOutput({ output, executionStatus, onClear }: TerminalOut
           <span className="text-[11px] uppercase tracking-wider font-semibold">Execution Console</span>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* Execution Status Badge */}
-          {executionStatus && (
-            <div className="flex items-center gap-1.5 text-[11px]">
-              {executionStatus === "pending" || executionStatus === "running" ? (
-                <span className="text-amber-400 flex items-center gap-1">
-                  <Loader2 className="w-3 h-3 animate-spin" /> Running...
-                </span>
-              ) : executionStatus === "passed" ? (
-                <span className="text-emerald-400 flex items-center gap-1">
-                  <CheckCircle className="w-3 h-3" /> All Tests Passed
-                </span>
-              ) : (
-                <span className="text-red-400 flex items-center gap-1">
-                  <XCircle className="w-3 h-3" /> Execution Failed
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Reusable Clear Console Button */}
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={handleClear}
-            className="h-7 px-2 text-zinc-400 hover:text-white hover:bg-zinc-800"
-            title="Clear Console Output"
-          >
+        {/* Clear Console Button */}
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={handleClear}
+          className="h-7 px-2 text-zinc-400 hover:text-white hover:bg-zinc-800"
+          title="Clear Console Output"
+        >
+          <div className="flex items-center gap-2 text-zinc-400 hover:text-white">
             <Trash2 className="w-3.5 h-3.5" />
             <span className="text-[11px]">Clear</span>
-          </Button>
-        </div>
+          </div>
+        </Button>
       </div>
 
       {/* Terminal Logs */}

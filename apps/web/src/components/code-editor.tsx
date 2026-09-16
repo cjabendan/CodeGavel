@@ -19,7 +19,7 @@ export function CodeMirrorEditor({ value, onChange, readOnly = false }: CodeMirr
         extensions={[cpp()]}
         onChange={onChange}
         readOnly={readOnly}
-        theme="light"
+        theme="dark"
         className="text-xs font-mono flex-1 overflow-auto"
       />
     </div>

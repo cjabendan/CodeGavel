@@ -9,6 +9,7 @@ export interface ExamSession {
   group_code: string;
   assigned_problem: string;
   current_code: string;
+  stdin?: string; // Add stdin field definition
   time_limit_min: number;
   strike_count: number;
   status: "waiting" | "active" | "paused" | "locked_strike" | "submitted" | "timeout";
@@ -43,7 +44,6 @@ export const examService = {
     } catch (err: unknown) {
       const pbError = err as ClientResponseError;
 
-      // Handle 404 (Not Found), 400 (Bad Request), or 403 (Forbidden if API rules restrict listing)
       if (pbError?.status === 404 || pbError?.status === 400 || pbError?.status === 403) {
         throw new Error("Invalid Room Code. Please check with your instructor.");
       }
@@ -52,7 +52,7 @@ export const examService = {
   },
 
   /**
-   * Resume session or auto-assign a problem and start exam
+   * Resume session or auto-assign a problem (max 2 uses per problem) and start exam
    */
   async startOrResumeSession(studentName: string, groupCode: string): Promise<ExamSession> {
     const trimmedName = studentName.trim();
@@ -72,13 +72,36 @@ export const examService = {
           { expand: "assigned_problem,group", requestKey: null },
         );
     } catch {
+      // 1. Fetch existing sessions for this group to count problem usage
+      const existingSessions = await pb.collection("exam_sessions").getFullList<ExamSession>({
+        filter: pb.filter("group = {:groupId}", { groupId: group.id }),
+        requestKey: null,
+      });
+
+      const problemUsageCounts = new Map<string, number>();
+      for (const session of existingSessions) {
+        if (session.assigned_problem) {
+          const currentCount = problemUsageCounts.get(session.assigned_problem) || 0;
+          problemUsageCounts.set(session.assigned_problem, currentCount + 1);
+        }
+      }
+
+      // 2. Fetch all problems in database
       const problemsList = await pb.collection("problems").getFullList<Problem>({ requestKey: null });
 
       if (problemsList.length === 0) {
         throw new Error("No exam problems available in the database yet.");
       }
 
-      const randomProblem = problemsList[Math.floor(Math.random() * problemsList.length)];
+      // 3. Filter problems that have been assigned fewer than 2 times in this group
+      const eligibleProblems = problemsList.filter((problem) => (problemUsageCounts.get(problem.id) || 0) < 2);
+
+      if (eligibleProblems.length === 0) {
+        throw new Error("All available problems have reached their maximum limit of 2 assignments for this room.");
+      }
+
+      // 4. Select a random problem from eligible pool
+      const randomProblem = eligibleProblems[Math.floor(Math.random() * eligibleProblems.length)];
       const initialCode =
         randomProblem.starter_code ||
         '// Write your C solution here\n#include <stdio.h>\n\nint main() {\n    printf("Hello World\\n");\n    return 0;\n}';
@@ -102,33 +125,57 @@ export const examService = {
   },
 
   /**
-   * Mark the exam session as timed out and update the status in the database
-   *
-   **/
+   * Fetch an exam session by ID safely.
+   */
+  async getSession(sessionId: string): Promise<ExamSession | null> {
+    if (!sessionId?.trim()) {
+      return null;
+    }
 
-  async timeoutExam(sessionId: string): Promise<void> {
-    await pb.collection("exam_sessions").update(
-      sessionId,
-      {
-        status: "timeout",
-        time_ended: new Date().toISOString(),
-      },
-      { requestKey: null },
-    );
+    try {
+      return await pb.collection("exam_sessions").getOne<ExamSession>(sessionId, {
+        expand: "assigned_problem,group",
+        requestKey: null,
+      });
+    } catch (err: unknown) {
+      const pbError = err as ClientResponseError;
+      if (pbError?.status === 404 || pbError?.status === 400) {
+        return null;
+      }
+      throw err;
+    }
   },
 
-  async getSession(sessionId: string): Promise<ExamSession> {
-    return await pb.collection("exam_sessions").getOne<ExamSession>(sessionId, {
-      expand: "assigned_problem,group",
-      requestKey: null,
-    });
+  /**
+   * Mark the exam session as timed out
+   */
+  async timeoutExam(sessionId: string): Promise<void> {
+    if (!sessionId) return;
+
+    try {
+      await pb.collection("exam_sessions").update(
+        sessionId,
+        {
+          status: "timeout",
+          time_ended: new Date().toISOString(),
+        },
+        { requestKey: null },
+      );
+    } catch (err: unknown) {
+      const pbError = err as ClientResponseError;
+      if (pbError?.status === 404) return;
+      throw err;
+    }
   },
 
   async saveCode(sessionId: string, code: string): Promise<void> {
+    if (!sessionId) return;
     await pb.collection("exam_sessions").update(sessionId, { current_code: code }, { requestKey: null });
   },
 
   async incrementStrike(sessionId: string, currentStrikes: number): Promise<number> {
+    if (!sessionId) return currentStrikes;
+
     const nextStrikes = currentStrikes + 1;
     const isLocked = nextStrikes >= 3;
 
@@ -145,6 +192,8 @@ export const examService = {
   },
 
   async submitExam(sessionId: string, finalCode: string): Promise<void> {
+    if (!sessionId) return;
+
     await pb.collection("exam_sessions").update(
       sessionId,
       {
@@ -156,14 +205,16 @@ export const examService = {
     );
   },
 
-  // Run C code
-  async runCode(sessionId: string, code: string): Promise<void> {
+  async runCode(sessionId: string, code: string, stdinInput: string = ""): Promise<void> {
+    if (!sessionId) return;
+
     await pb.collection("exam_sessions").update(
       sessionId,
       {
         current_code: code,
+        stdin: stdinInput, // Store standard input string in PocketBase
         execution_status: "pending",
-        terminal_output: "⏳ Execution queued. Waiting for worker...",
+        terminal_output: "Execution queued. Waiting for worker...",
       },
       { requestKey: null },
     );

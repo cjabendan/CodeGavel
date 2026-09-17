@@ -38,8 +38,8 @@ export function JoinExamForm() {
   return (
     <div className="bg-white border border-zinc-200 rounded-2xl p-6 shadow-sm">
       <div className="mb-6">
-        <h2 className="text-xl font-bold text-zinc-900">Enter Examination Lab</h2>
-        <p className="text-sm text-zinc-500 mt-1">Enter your 6-digit room code provided by your instructor.</p>
+        <h2 className="text-xl font-bold text-zinc-900">CodeGavel Examination Lab</h2>
+        <p className="text-sm text-zinc-500 mt-1">Please enter the 6-digit room code provided by your instructor.</p>
       </div>
 
       <form onSubmit={handleSubmit} action="#" className="space-y-6">

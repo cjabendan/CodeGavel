@@ -59,13 +59,6 @@ export function ExamStatusOverlay({ status, onClose, onAction }: ExamStatusOverl
             <p className="text-xs text-zinc-500">
               Your session was locked due to exceeding anti-cheat window switch limits.
             </p>
-            {onAction && (
-              <div className="pt-2">
-                <Button type="button" variant="danger" size="sm" onClick={onAction} className="w-full">
-                  Request Unlock
-                </Button>
-              </div>
-            )}
           </>
         )}
 

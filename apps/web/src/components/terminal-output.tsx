@@ -1,56 +1,176 @@
 "use client";
 
-import { Terminal, Trash2 } from "lucide-react";
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { FitAddon } from "@xterm/addon-fit";
+import { Terminal } from "@xterm/xterm";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import "@xterm/xterm/css/xterm.css";
 
-interface TerminalOutputProps {
-  output?: string;
-  executionStatus?: string;
-  onClear?: () => void;
+export interface TerminalOutputRef {
+  runCode: () => void;
 }
 
-export function TerminalOutput({ output, onClear }: TerminalOutputProps) {
-  const [cleared, setCleared] = useState(false);
+interface TerminalOutputProps {
+  code: string;
+}
 
-  const handleClear = () => {
-    setCleared(true);
-    if (onClear) {
-      onClear();
+export const TerminalOutput = forwardRef<TerminalOutputRef, TerminalOutputProps>(({ code }, ref) => {
+  const terminalContainerRef = useRef<HTMLDivElement>(null);
+  const socketRef = useRef<WebSocket | null>(null);
+  const termRef = useRef<Terminal | null>(null);
+  const isUnmountingRef = useRef(false);
+
+  const [isConnected, setIsConnected] = useState(false);
+  const [isExecuting, setIsExecuting] = useState(false);
+
+  const connectWebSocket = useCallback(() => {
+    if (isUnmountingRef.current) return;
+
+    const host = typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+    const defaultWsUrl = `ws://${host}:8080`;
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || defaultWsUrl;
+
+    const ws = new WebSocket(wsUrl);
+    socketRef.current = ws;
+
+    ws.onopen = () => {
+      if (isUnmountingRef.current) return;
+      setIsConnected(true);
+      termRef.current?.writeln("\x1b[32m[Connected to C-Runner Engine]\x1b[0m\r\n");
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        if (payload.type === "output") {
+          termRef.current?.write(payload.data);
+        } else if (payload.type === "exit") {
+          setIsExecuting(false);
+        }
+      } catch {
+        termRef.current?.write(event.data);
+      }
+    };
+
+    ws.onerror = () => {
+      if (isUnmountingRef.current || ws.readyState === WebSocket.CLOSING || ws.readyState === WebSocket.CLOSED) {
+        return;
+      }
+      setIsConnected(false);
+      setIsExecuting(false);
+    };
+
+    ws.onclose = () => {
+      if (isUnmountingRef.current) return;
+
+      setIsConnected(false);
+      setIsExecuting(false);
+      termRef.current?.writeln("\r\n\x1b[31m[Disconnected from runner. Reconnecting...]\x1b[0m\r\n");
+
+      setTimeout(() => {
+        if (!isUnmountingRef.current && terminalContainerRef.current) {
+          connectWebSocket();
+        }
+      }, 3000);
+    };
+  }, []);
+
+  useEffect(() => {
+    isUnmountingRef.current = false;
+    if (!terminalContainerRef.current) return;
+
+    const term = new Terminal({
+      cursorBlink: true,
+      fontSize: 13,
+      fontFamily: "monospace",
+      theme: { background: "#09090b", foreground: "#f4f4f5" },
+    });
+
+    const fitAddon = new FitAddon();
+    term.loadAddon(fitAddon);
+    term.open(terminalContainerRef.current);
+    fitAddon.fit();
+    termRef.current = term;
+
+    connectWebSocket();
+
+    term.onData((data) => {
+      if (socketRef.current?.readyState === WebSocket.OPEN) {
+        socketRef.current.send(JSON.stringify({ type: "input", data }));
+      }
+    });
+
+    const handleResize = () => fitAddon.fit();
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      isUnmountingRef.current = true;
+      window.removeEventListener("resize", handleResize);
+
+      if (socketRef.current) {
+        socketRef.current.onopen = null;
+        socketRef.current.onmessage = null;
+        socketRef.current.onerror = null;
+        socketRef.current.onclose = null;
+        socketRef.current.close();
+      }
+
+      term.dispose();
+    };
+  }, [connectWebSocket]);
+
+  const executeCode = () => {
+    if (socketRef.current?.readyState === WebSocket.OPEN && termRef.current) {
+      setIsExecuting(true);
+      termRef.current.clear();
+      termRef.current.writeln("\x1b[33mCompiling and running...\x1b[0m\r\n");
+      socketRef.current.send(
+        JSON.stringify({
+          type: "run",
+          code,
+          cols: termRef.current.cols,
+          rows: termRef.current.rows,
+        })
+      );
+    } else {
+      termRef.current?.writeln("\x1b[31m[Error: Terminal runner offline. Waiting for connection...]\x1b[0m\r\n");
     }
   };
 
-  const currentOutput = cleared ? "" : output;
+  useImperativeHandle(ref, () => ({
+    runCode: executeCode,
+  }));
 
   return (
-    <div className="h-full flex flex-col bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden shadow-sm font-mono text-xs text-zinc-200">
-      {/* Top Console Bar */}
-      <div className="p-3 bg-zinc-900 border-b border-zinc-800 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-zinc-400">
-          <Terminal className="w-4 h-4 text-zinc-300" />
-          <span className="text-[11px] uppercase tracking-wider font-semibold">Execution Console</span>
+    <div className="h-full flex flex-col bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden font-mono">
+      <div className="p-2.5 bg-zinc-900 border-b border-zinc-800 flex justify-between items-center">
+        <span className="text-xs text-zinc-400 font-semibold px-2">Interactive Terminal</span>
+
+        <div className="flex items-center gap-2 px-2">
+          <span
+            className={`w-2 h-2 rounded-full ${
+              isConnected
+                ? isExecuting
+                  ? "bg-amber-400 animate-ping"
+                  : "bg-emerald-500 animate-pulse"
+                : "bg-red-500"
+            }`}
+          />
+          <span
+            className={`text-xs font-semibold ${
+              isConnected
+                ? isExecuting
+                  ? "text-amber-400"
+                  : "text-emerald-400"
+                : "text-red-400"
+            }`}
+          >
+            {isConnected ? (isExecuting ? "Executing..." : "Online") : "Offline"}
+          </span>
         </div>
-
-        {/* Clear Console Button */}
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={handleClear}
-          className="h-7 px-2 text-zinc-400 hover:text-white hover:bg-zinc-800"
-          title="Clear Console Output"
-        >
-          <div className="flex items-center gap-2 text-zinc-400 hover:text-white">
-            <Trash2 className="w-3.5 h-3.5" />
-            <span className="text-[11px]">Clear</span>
-          </div>
-        </Button>
       </div>
-
-      {/* Terminal Logs */}
-      <div className="flex-1 p-4 overflow-y-auto whitespace-pre-wrap font-mono text-[11px] leading-relaxed text-zinc-300">
-        {currentOutput || "Run code to view output logs."}
-      </div>
+      <div ref={terminalContainerRef} className="flex-1 p-2 overflow-hidden" />
     </div>
   );
-}
+});
+
+TerminalOutput.displayName = "TerminalOutput";

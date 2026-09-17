@@ -53,7 +53,6 @@ export function ProblemHeader({
         </div>
       </div>
 
-      {/* Search Bar */}
       <div className="relative">
         <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-3" />
         <input

@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Clock, FileText, HardDrive, RefreshCw } from "lucide-react";
+import { Clock, FileText, HardDrive, RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import type { Problem } from "@/lib/services/problem-services";
@@ -23,6 +23,9 @@ export function ProblemDescription({ problem, onRefresh }: ProblemDescriptionPro
       </div>
     );
   }
+
+  // Helper to ensure literal "\n" strings convert into real line breaks
+  const formatText = (text: string = "") => text.replaceAll("\\n", "\n");
 
   return (
     <div className="h-full flex flex-col bg-white border border-zinc-200 rounded-xl overflow-hidden shadow-sm">
@@ -59,28 +62,20 @@ export function ProblemDescription({ problem, onRefresh }: ProblemDescriptionPro
       <div className="flex-1 p-5 overflow-y-auto space-y-5 font-sans text-xs leading-relaxed text-zinc-700">
         <div>
           <h1 className="text-base font-bold text-zinc-900 mb-2">{problem.title}</h1>
-          <p className="whitespace-pre-line text-zinc-600">{problem.description}</p>
+          <p className="whitespace-pre-wrap text-zinc-600">{formatText(problem.description)}</p>
         </div>
 
-        {/* Public Test Cases */}
+        {/* Public Test Cases (Output Only) */}
         <div className="space-y-3 pt-2">
           <h4 className="font-mono uppercase font-bold text-[11px] text-zinc-900 flex items-center gap-1.5">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-            Sample Assertions
+            Expected Output
           </h4>
-          {problem.test_cases?.map((tc) => (
+          {problem.test_cases?.map((tc, index) => (
             <div
-              key={`tc-${tc.input}-${tc.output}`}
-              className="bg-zinc-50 border border-zinc-200 rounded-lg p-3 space-y-2 font-mono text-[11px]"
+              key={`tc-${problem.id || "prob"}-${tc.output || index}`}
+              className="bg-black text-white border border-zinc-800 rounded-lg p-3 font-mono text-[11px] shadow-inner"
             >
-              <div>
-                <span className="text-zinc-400 block text-[10px] uppercase">Input:</span>
-                <code className="text-zinc-800 font-medium">{tc.input || "(empty)"}</code>
-              </div>
-              <div>
-                <span className="text-zinc-400 block text-[10px] uppercase">Expected Output:</span>
-                <code className="text-emerald-700 font-medium">{tc.output}</code>
-              </div>
+              <pre className="whitespace-pre-wrap font-mono leading-relaxed">{formatText(tc.output)}</pre>
             </div>
           ))}
         </div>

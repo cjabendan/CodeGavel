@@ -14,6 +14,7 @@ export function useExamSession(studentNameParam: string | null, groupCodeParam: 
   const [output, setOutput] = useState<string>("Console output will appear here...");
   const [loading, setLoading] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [stdinInput, setStdinInput] = useState<string>("");
 
   useEffect(() => {
     sessionRef.current = session;
@@ -79,11 +80,13 @@ export function useExamSession(studentNameParam: string | null, groupCodeParam: 
     }
   };
 
-  const handleRunCode = async () => {
+  const handleRunCode = async (customInput?: string) => {
     if (!sessionRef.current?.id) return;
     setOutput("Compiling and executing code...");
     try {
-      await examService.runCode(sessionRef.current.id, code);
+      // Fallback to state stdinInput or problem test_cases
+      const inputToSubmit = customInput !== undefined ? customInput : stdinInput;
+      await examService.runCode(sessionRef.current.id, code, inputToSubmit);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       setOutput(`Execution Trigger Error: ${errorMessage}`);
@@ -120,6 +123,8 @@ export function useExamSession(studentNameParam: string | null, groupCodeParam: 
     session,
     code,
     output,
+    stdinInput,
+    setStdinInput,
     loading,
     isSubmitting,
     handleCodeChange,

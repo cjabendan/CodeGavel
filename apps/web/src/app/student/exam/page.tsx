@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, AlertTriangle, CheckCircle2, Clock, KeyRound, Lock, Play, User } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Clock, KeyRound, Lock, Pause, Play, User } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { CodeMirrorEditor } from "@/components/code-editor";
@@ -8,7 +8,8 @@ import { CountdownOverlay } from "@/components/countdown-overlay";
 import { ExamStatusOverlay } from "@/components/exam-status-overlay";
 import { ProblemDescription } from "@/components/problem-description";
 import { ExamHeader } from "@/components/student/student-header";
-import { TerminalOutput } from "@/components/terminal-output";
+import { TerminalOutput, type TerminalOutputRef } from "@/components/terminal-output"; // <-- Updated import
+import { useAntiCheat } from "@/hooks/use-anti-cheat";
 import { pb } from "@/lib/pocketbase";
 import { type ExamSession, examService } from "@/lib/services/exam-services";
 
@@ -22,7 +23,7 @@ function ExamWorkspaceContent() {
   const [session, setSession] = useState<ExamSession | null>(null);
   const [studentName, setStudentName] = useState("");
   const [code, setCode] = useState<string>(
-    '// Write your C code solution here\n#include <stdio.h>\n\nint main() {\n    printf("Hello World\\n");\n    return 0;\n}',
+    '// Write your C code solution here\n#include <stdio.h>\n\nint main() {\n    int num;\n    printf("Enter number: ");\n    scanf("%d", &num);\n    printf("You entered: %d\\n", num);\n    return 0;\n}'
   );
   const [isSaving, setIsSaving] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
@@ -30,22 +31,21 @@ function ExamWorkspaceContent() {
   const [isStarting, setIsStarting] = useState(false);
   const [startError, setStartError] = useState("");
   const [showCountdown, setShowCountdown] = useState(false);
-
-  // Overlay Dismissal State
   const [isOverlayDismissed, setIsOverlayDismissed] = useState(false);
-  const prevStatusRef = useRef<string | undefined>(undefined);
+
+  const workspaceBoxRef = useRef<HTMLDivElement>(null);
+  const terminalRef = useRef<TerminalOutputRef>(null); // <-- Added Terminal Ref
 
   const sessionRef = useRef<ExamSession | null>(null);
   useEffect(() => {
     sessionRef.current = session;
   }, [session]);
 
-  // Re-trigger overlay popup if session status transitions to a new non-active state
+  // Reset overlay dismissal when session status updates
   useEffect(() => {
-    if (session?.status && session.status !== "active" && session.status !== prevStatusRef.current) {
+    if (session?.status) {
       setIsOverlayDismissed(false);
     }
-    prevStatusRef.current = session?.status;
   }, [session?.status]);
 
   const loadSession = useCallback(async () => {
@@ -53,13 +53,24 @@ function ExamWorkspaceContent() {
       setIsLoadingSession(false);
       return;
     }
+
     try {
       setIsLoadingSession(true);
       const data = await examService.getSession(sessionIdParam);
+
+      if (!data) {
+        window.location.href = "/";
+        return;
+      }
+
       setSession(data);
-      if (data.current_code) setCode(data.current_code);
+
+      if (data?.current_code) {
+        setCode(data.current_code);
+      }
     } catch (err) {
-      console.error("Failed to fetch session:", err);
+      console.error("Failed to fetch session or session deleted:", err);
+      window.location.href = "/";
     } finally {
       setIsLoadingSession(false);
     }
@@ -69,7 +80,16 @@ function ExamWorkspaceContent() {
     loadSession();
   }, [loadSession]);
 
-  // Timeout handler 
+  useAntiCheat({
+    sessionId: session?.id || sessionIdParam,
+    enabled: !!session?.expand?.group?.anti_cheat_enabled,
+    status: session?.status || "",
+    strikeCount: session?.strike_count || 0,
+    onStrikeRecorded: (newStrikeCount) => {
+      setSession((prev) => (prev ? { ...prev, strike_count: newStrikeCount } : null));
+    },
+  });
+
   const handleTimeout = useCallback(async () => {
     const curSession = sessionRef.current;
     const curId = curSession?.id || sessionIdParam;
@@ -84,7 +104,6 @@ function ExamWorkspaceContent() {
     }
   }, [sessionIdParam]);
 
-  // Automated countdown monitor and reload validator
   useEffect(() => {
     if (session?.status !== "active" || !session?.time_started) return;
 
@@ -133,10 +152,15 @@ function ExamWorkspaceContent() {
   };
 
   const activeSessionId = session?.id || sessionIdParam;
+
   useEffect(() => {
     if (!activeSessionId) return;
 
     const unsub = pb.collection("exam_sessions").subscribe<ExamSession>(activeSessionId, (e) => {
+      if (e.action === "delete") {
+        window.location.href = "/";
+        return;
+      }
       setSession((prev) => (prev ? { ...prev, ...e.record } : e.record));
     });
 
@@ -168,35 +192,15 @@ function ExamWorkspaceContent() {
     }, 1500);
   };
 
-  const strikeCountRef = useRef(session?.strike_count || 0);
-  useEffect(() => {
-    strikeCountRef.current = session?.strike_count || 0;
-  }, [session?.strike_count]);
-
-  useEffect(() => {
-    const handleBlur = async () => {
-      const curSession = sessionRef.current;
-      if (curSession?.status !== "active" || !curSession?.expand?.group?.anti_cheat_enabled) {
-        return;
-      }
-
-      const curId = curSession.id;
-      if (!curId) return;
-      const currentStrikes = curSession.strike_count ?? strikeCountRef.current;
-      const newCount = await examService.incrementStrike(curId, currentStrikes);
-      setSession((prev) => (prev ? { ...prev, strike_count: newCount } : null));
-    };
-
-    window.addEventListener("blur", handleBlur);
-    return () => window.removeEventListener("blur", handleBlur);
-  }, []);
-
+  // Updated Run Code Handler to trigger WS Interactive execution
   const handleRunCode = async () => {
     const curId = session?.id || sessionIdParam;
     if (!curId || session?.status !== "active") return;
     setIsExecuting(true);
-    await examService.runCode(curId, code);
-    setTimeout(() => setIsExecuting(false), 2000);
+
+    terminalRef.current?.runCode();
+
+    setTimeout(() => setIsExecuting(false), 1000);
   };
 
   const handleSubmitExam = async () => {
@@ -210,6 +214,52 @@ function ExamWorkspaceContent() {
     }
     await examService.submitExam(curId, code);
     await loadSession();
+  };
+
+  const renderStatusBanner = () => {
+    if (!session || session.status === "active") return null;
+
+    const statusConfigs = {
+      waiting: {
+        bg: "bg-amber-500/10 border-amber-500/20 text-amber-700 dark:text-amber-400",
+        icon: <Clock className="w-4 h-4 text-amber-500 shrink-0" />,
+        text: "Exam Lobby Open — Waiting for instructor to start.",
+      },
+      paused: {
+        bg: "bg-zinc-500/10 border-zinc-500/20 text-zinc-700 dark:text-zinc-300",
+        icon: <Pause className="w-4 h-4 text-zinc-500 shrink-0" />,
+        text: "Exam Paused — The instructor has temporarily paused this session.",
+      },
+      locked_strike: {
+        bg: "bg-red-500/10 border-red-500/20 text-red-700 dark:text-red-400",
+        icon: <Lock className="w-4 h-4 text-red-500 shrink-0" />,
+        text: "Exam Locked — Anti-cheat limit exceeded. Your session is locked.",
+      },
+      timeout: {
+        bg: "bg-orange-500/10 border-orange-500/20 text-orange-700 dark:text-orange-400",
+        icon: <AlertTriangle className="w-4 h-4 text-orange-500 shrink-0" />,
+        text: "Time Expired — The allocated time has ended. Code is read-only.",
+      },
+      submitted: {
+        bg: "bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-400",
+        icon: <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />,
+        text: "Solution Submitted — Your code was finalized and recorded.",
+      },
+    };
+
+    const config = statusConfigs[session.status];
+    if (!config) return null;
+
+    return (
+      <div
+        className={`px-4 py-3.5 border-b text-xs font-mono flex items-center justify-between transition-all ${config.bg}`}
+      >
+        <div className="flex items-center gap-2.5">
+          {config.icon}
+          <span className="font-medium">{config.text}</span>
+        </div>
+      </div>
+    );
   };
 
   if (isLoadingSession) {
@@ -270,7 +320,7 @@ function ExamWorkspaceContent() {
             <button
               type="submit"
               disabled={isStarting || showCountdown || !studentName.trim() || !groupCodeParam}
-              className="w-full bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 text-white text-xs font-bold py-3 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 text-white text-xs font-bold py-3 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2"
             >
               <Play className="w-4 h-4 fill-white" />
               <span>{isStarting ? "Assigning Problem..." : "Start Exam Now"}</span>
@@ -281,50 +331,8 @@ function ExamWorkspaceContent() {
     );
   }
 
-  // Helper config for status banner presentation
-  const getStatusBannerConfig = () => {
-    switch (session.status) {
-      case "timeout":
-        return {
-          bg: "bg-amber-500/10 border-amber-500/30 text-amber-900",
-          badgeBg: "bg-amber-500/20 text-amber-700 border-amber-500/30",
-          icon: <Clock className="w-4 h-4 text-amber-600 shrink-0" />,
-          title: "Time Expired",
-          desc: "Your exam duration limit has ended. Workspace editing is locked.",
-        };
-      case "locked_strike":
-        return {
-          bg: "bg-red-500/10 border-red-500/30 text-red-900",
-          badgeBg: "bg-red-500/20 text-red-700 border-red-500/30",
-          icon: <Lock className="w-4 h-4 text-red-600 shrink-0" />,
-          title: "Exam Locked",
-          desc: "Session suspended due to anti-cheat violations.",
-        };
-      case "submitted":
-        return {
-          bg: "bg-emerald-500/10 border-emerald-500/30 text-emerald-900",
-          badgeBg: "bg-emerald-500/20 text-emerald-700 border-emerald-500/30",
-          icon: <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />,
-          title: "Exam Submitted",
-          desc: "Your solution has been submitted and recorded successfully.",
-        };
-      case "paused":
-        return {
-          bg: "bg-zinc-500/10 border-zinc-500/30 text-zinc-900",
-          badgeBg: "bg-zinc-500/20 text-zinc-700 border-zinc-500/30",
-          icon: <AlertTriangle className="w-4 h-4 text-zinc-600 shrink-0" />,
-          title: "Session Paused",
-          desc: "The instructor has temporarily paused this exam session.",
-        };
-      default:
-        return null;
-    }
-  };
-
-  const bannerConfig = getStatusBannerConfig();
-
   return (
-    <div className="h-screen flex flex-col bg-zinc-100 font-sans overflow-hidden">
+    <div ref={workspaceBoxRef} className="h-screen flex flex-col bg-zinc-100 font-sans overflow-hidden">
       <ExamHeader
         session={session}
         onRunCode={handleRunCode}
@@ -333,43 +341,25 @@ function ExamWorkspaceContent() {
         isExecuting={isExecuting}
       />
 
-      {/* Inline Status Banner */}
-      {session.status !== "active" && bannerConfig && (
-        <div className="px-4 pt-3">
-          <div className={`p-3 rounded-xl border flex items-center justify-between text-xs ${bannerConfig.bg}`}>
-            <div className="flex items-center gap-2.5">
-              {bannerConfig.icon}
-              <span
-                className={`font-mono font-bold uppercase text-[10px] px-2 py-0.5 rounded border ${bannerConfig.badgeBg}`}
-              >
-                {bannerConfig.title}
-              </span>
-              <span className="font-medium text-zinc-700">{bannerConfig.desc}</span>
-            </div>
-          </div>
-        </div>
-      )}
+      {isOverlayDismissed && renderStatusBanner()}
 
-      <main className="flex-1 p-4 grid grid-cols-12 gap-4 overflow-hidden">
+      <main className="flex-1 p-4 grid grid-cols-12 gap-2 overflow-hidden">
         <div className="col-span-4 h-full overflow-hidden">
           <ProblemDescription problem={session.expand?.assigned_problem} />
         </div>
 
-        <div className="col-span-8 h-full flex flex-col gap-4 overflow-hidden">
+        <div className="col-span-8 h-full flex flex-col gap-2 overflow-hidden">
           <div className="flex-[65] overflow-hidden">
             <CodeMirrorEditor value={code} onChange={handleCodeChange} readOnly={session.status !== "active"} />
           </div>
 
           <div className="flex-[35] overflow-hidden">
-            <TerminalOutput output={session.terminal_output} executionStatus={session.execution_status} />
+            <TerminalOutput ref={terminalRef} code={code} />
           </div>
         </div>
       </main>
 
-      {/* Dismissible Fullscreen Status Overlay */}
-      {!isOverlayDismissed && session.status !== "active" && (
-        <ExamStatusOverlay status={session.status} onClose={() => setIsOverlayDismissed(true)} />
-      )}
+      {!isOverlayDismissed && <ExamStatusOverlay status={session.status} onClose={() => setIsOverlayDismissed(true)} />}
     </div>
   );
 }

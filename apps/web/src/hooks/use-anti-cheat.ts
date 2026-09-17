@@ -14,10 +14,12 @@ interface UseAntiCheatOptions {
 export function useAntiCheat({ sessionId, enabled, status, strikeCount, onStrikeRecorded }: UseAntiCheatOptions) {
   const strikeRef = useRef(strikeCount);
   const isProcessingRef = useRef(false);
+  const callbackRef = useRef(onStrikeRecorded);
 
   useEffect(() => {
     strikeRef.current = strikeCount;
-  }, [strikeCount]);
+    callbackRef.current = onStrikeRecorded;
+  }, [strikeCount, onStrikeRecorded]);
 
   useEffect(() => {
     if (!enabled || !sessionId || status !== "active") return;
@@ -29,26 +31,39 @@ export function useAntiCheat({ sessionId, enabled, status, strikeCount, onStrike
       try {
         console.warn(`[Anti-Cheat Violation]: ${reason}`);
         const newStrikes = await examService.incrementStrike(sessionId, strikeRef.current);
-        if (onStrikeRecorded) {
-          onStrikeRecorded(newStrikes);
+        if (callbackRef.current) {
+          callbackRef.current(newStrikes);
         }
       } catch (err) {
         console.error("Failed to record strike:", err);
       } finally {
         setTimeout(() => {
           isProcessingRef.current = false;
-        }, 1000);
+        }, 1500); 
       }
+    };
+
+    // Detect cursor leaving the top of the browser viewport into tabs/address bar
+    const handleMouseLeave = (e: MouseEvent) => {
+      if (e.clientY <= 0) {
+        triggerStrike("Cursor hovered over browser tabs / address bar");
+        return;
+      }
+
+      // Cursor exited side/bottom boundaries
+      if (!e.relatedTarget) {
+        triggerStrike("Cursor exited the exam viewport boundary");
+      }
+    };
+
+    const handleBlur = () => {
+      triggerStrike("Exam window lost focus");
     };
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
         triggerStrike("Tab switched or browser minimized");
       }
-    };
-
-    const handleBlur = () => {
-      triggerStrike("Window lost focus");
     };
 
     const handleContextMenu = (e: MouseEvent) => {
@@ -60,20 +75,22 @@ export function useAntiCheat({ sessionId, enabled, status, strikeCount, onStrike
       const isCmdOrCtrl = e.metaKey || e.ctrlKey;
       if (isCmdOrCtrl && (e.key === "c" || e.key === "v" || e.key === "x")) {
         e.preventDefault();
-        triggerStrike("Copy/Paste shortcut attempted");
+        triggerStrike("Copy/Paste attempt detected");
       }
     };
 
-    window.addEventListener("visibilitychange", handleVisibilityChange);
+    document.documentElement.addEventListener("mouseleave", handleMouseLeave);
     window.addEventListener("blur", handleBlur);
+    window.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("contextmenu", handleContextMenu);
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      window.removeEventListener("visibilitychange", handleVisibilityChange);
+      document.documentElement.removeEventListener("mouseleave", handleMouseLeave);
       window.removeEventListener("blur", handleBlur);
+      window.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("contextmenu", handleContextMenu);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [sessionId, enabled, status, onStrikeRecorded]);
+  }, [sessionId, enabled, status]);
 }

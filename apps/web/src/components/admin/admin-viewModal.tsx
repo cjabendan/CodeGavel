@@ -1,6 +1,7 @@
 "use client";
 
-import { Clock, Code, Shield, Terminal, X } from "lucide-react";
+import { Check, Clock, Code, Copy, Shield, Terminal, X } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { ExamSession } from "@/lib/services/exam-services";
 
@@ -10,7 +11,20 @@ interface Props {
 }
 
 export function CodeViewerModal({ session, onClose }: Props) {
+  const [copied, setCopied] = useState(false);
+
   if (!session) return null;
+
+  const handleCopyCode = async () => {
+    if (!session.current_code) return;
+    try {
+      await navigator.clipboard.writeText(session.current_code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy code: ", err);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-zinc-900/40 backdrop-blur-sm flex items-center justify-center p-4">
@@ -55,18 +69,40 @@ export function CodeViewerModal({ session, onClose }: Props) {
         <div className="rounded-lg flex-1 grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-zinc-200 overflow-hidden">
           {/* Code View */}
           <div className="md:col-span-2 p-4 flex flex-col bg-zinc-950 text-zinc-100 font-mono text-xs overflow-auto">
-            <div className="text-zinc-500 text-[10px] uppercase mb-2 select-none">Live Code Draft</div>
-            <pre className="whitespace-pre-wrap font-mono leading-relaxed">
+            <div className="flex items-center justify-between mb-4 select-none border-b border-zinc-800 pb-2">
+              <span className="text-zinc-100 text-[10px] uppercase font-semibold">Live Code Draft</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleCopyCode}
+                disabled={!session.current_code}
+                className="h-6 px-2 text-[11px] bg-zinc-400/10 hover:bg-zinc-800 flex items-center gap-1.5 rounded transition"
+              >
+                {copied ? (
+                  <>
+                    <Check className="w-3 h-3 text-zinc-100" />
+                    <span className="text-zinc-100 font-medium">Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3 h-3 text-zinc-100" />
+                    <span className="text-zinc-100">Copy Code</span>
+                  </>
+                )}
+              </Button>
+            </div>
+            <pre className="whitespace-pre-wrap font-mono leading-relaxed flex-1">
               {session.current_code || "// No code drafted yet."}
             </pre>
           </div>
 
           {/* Execution Terminal */}
           <div className="p-4 flex flex-col bg-zinc-900 text-zinc-300 font-mono text-xs overflow-auto">
-            <div className="flex items-center gap-1.5 text-zinc-400 text-[10px] uppercase mb-2 select-none border-b border-zinc-800 pb-2">
-              <Terminal className="w-3 h-3" /> Terminal Execution Output
+            <div className="flex items-center gap-1.5 text-zinc-100 text-[11px] uppercase mb-2 select-none border-b border-zinc-800 pb-2 font-semibold">
+              <Terminal className="w-4 h-4" /> Terminal Output
             </div>
-            <pre className="whitespace-pre-wrap font-mono text-emerald-400 text-xs">
+            <pre className="whitespace-pre-wrap font-mono text-emerald-400 text-xs flex-1">
               {session.terminal_output || "No runtime output recorded."}
             </pre>
           </div>

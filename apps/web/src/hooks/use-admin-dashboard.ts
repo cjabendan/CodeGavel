@@ -185,6 +185,18 @@ export function useAdminDashboard() {
     setGroups((prev) => prev.map((g) => (g.id === updated.id ? updated : g)));
   };
 
+  const addTimeToAll = async (extraMins: number = 5) => {
+    if (!selectedGroup) return;
+    await adminService.addTimeToAllSessions(selectedGroup.id, extraMins);
+    await refreshSessions();
+  };
+
+  const clearAllStrikes = async () => {
+    if (!selectedGroup) return;
+    await adminService.clearAllStrikesInGroup(selectedGroup.id);
+    await refreshSessions();
+  };
+
   return {
     sections,
     selectedSection,
@@ -198,5 +210,7 @@ export function useAdminDashboard() {
     createSection,
     createGroup,
     toggleAntiCheat,
+    addTimeToAll,
+    clearAllStrikes,
   };
 }

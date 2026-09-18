@@ -16,6 +16,7 @@ export interface ExamSession {
   execution_status?: "idle" | "pending" | "running" | "completed" | "passed" | "failed" | "compile_error" | "error";
   terminal_output?: string;
   time_started?: string;
+  updated?: string;
   time_ended?: string;
   expand?: {
     assigned_problem?: Problem;

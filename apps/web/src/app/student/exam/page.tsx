@@ -308,10 +308,10 @@ function ExamWorkspaceContent() {
                   id="studentName"
                   type="text"
                   required
-                  placeholder="e.g. John Doe"
+                  placeholder="e.g. DOE, JOHN"
                   value={studentName}
                   disabled={isStarting || showCountdown}
-                  onChange={(e) => setStudentName(e.target.value)}
+                  onChange={(e) => setStudentName(e.target.value.toUpperCase())}
                   className="w-full bg-zinc-50 border border-zinc-200 rounded-lg pl-9 pr-3 py-2.5 text-sm text-zinc-900 font-mono placeholder-zinc-400 focus:outline-none focus:bg-white focus:border-zinc-900 transition-all disabled:opacity-50"
                 />
               </div>

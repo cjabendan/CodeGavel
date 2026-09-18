@@ -11,7 +11,7 @@ import { GroupTabStrip } from "@/components/admin/group-tab-strip";
 import { LiveSessionTable } from "@/components/admin/live-session-table";
 import { SectionControlBar } from "@/components/admin/section-control-bar";
 import { useAdminDashboard } from "@/hooks/use-admin-dashboard";
-import type { ExamSession } from "@/lib/services/admin-services";
+import type { ExamSession } from "@/lib/services/exam-services";
 
 export default function DashboardPage() {
   const {
@@ -25,6 +25,8 @@ export default function DashboardPage() {
     createSection,
     createGroup,
     toggleAntiCheat,
+    addTimeToAll,
+    clearAllStrikes,
     refreshSessions,
   } = useAdminDashboard();
 
@@ -49,7 +51,13 @@ export default function DashboardPage() {
 
         {selectedGroup ? (
           <div className="space-y-4">
-            <GroupInfoBanner group={selectedGroup} sessionCount={sessions.length} onToggleAntiCheat={toggleAntiCheat} />
+            <GroupInfoBanner
+              group={selectedGroup}
+              sessionCount={sessions.length}
+              onToggleAntiCheat={toggleAntiCheat}
+              onAddTimeToAll={addTimeToAll}
+              onClearAllStrikes={clearAllStrikes}
+            />
             <LiveSessionTable
               sessions={sessions}
               roomCode={selectedGroup.code}

@@ -3,7 +3,7 @@
 import { Clock, Play, Send, ShieldAlert, User } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import type { ExamSession } from "@/lib/services/session-services";
+import type { ExamSession } from "@/lib/services/exam-services";
 
 interface ExamHeaderProps {
   session: ExamSession;

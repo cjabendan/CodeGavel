@@ -1,6 +1,6 @@
 "use client";
 
-import { KeyRound, Maximize2, Shield, X } from "lucide-react";
+import { Clock, KeyRound, Maximize2, RotateCcw, Shield, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { Group } from "@/lib/services/admin-services";
@@ -9,11 +9,21 @@ interface GroupInfoBannerProps {
   group: Group;
   sessionCount: number;
   onToggleAntiCheat: () => Promise<void> | void;
+  onAddTimeToAll?: () => Promise<void> | void;
+  onClearAllStrikes?: () => Promise<void> | void;
 }
 
-export function GroupInfoBanner({ group, sessionCount, onToggleAntiCheat }: GroupInfoBannerProps) {
+export function GroupInfoBanner({
+  group,
+  sessionCount,
+  onToggleAntiCheat,
+  onAddTimeToAll,
+  onClearAllStrikes,
+}: GroupInfoBannerProps) {
   const [isCodeModalOpen, setIsCodeModalOpen] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
+  const [isAddingTime, setIsAddingTime] = useState(false);
+  const [isResettingStrikes, setIsResettingStrikes] = useState(false);
 
   const handleToggle = async () => {
     try {
@@ -21,6 +31,26 @@ export function GroupInfoBanner({ group, sessionCount, onToggleAntiCheat }: Grou
       await onToggleAntiCheat();
     } finally {
       setIsToggling(false);
+    }
+  };
+
+  const handleAddTimeToAll = async () => {
+    if (!onAddTimeToAll) return;
+    try {
+      setIsAddingTime(true);
+      await onAddTimeToAll();
+    } finally {
+      setIsAddingTime(false);
+    }
+  };
+
+  const handleClearAllStrikes = async () => {
+    if (!onClearAllStrikes) return;
+    try {
+      setIsResettingStrikes(true);
+      await onClearAllStrikes();
+    } finally {
+      setIsResettingStrikes(false);
     }
   };
 
@@ -50,7 +80,35 @@ export function GroupInfoBanner({ group, sessionCount, onToggleAntiCheat }: Grou
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
+          {onAddTimeToAll && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleAddTimeToAll}
+              isLoading={isAddingTime}
+              className="font-mono text-xs font-semibold px-3 py-1.5 bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-100"
+              title="Add 5 minutes to all active sessions in room"
+            >
+              <Clock className="w-3.5 h-3.5 mr-1 text-blue-600" />
+              +5m All
+            </Button>
+          )}
+
+          {onClearAllStrikes && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleClearAllStrikes}
+              isLoading={isResettingStrikes}
+              className="font-mono text-xs font-semibold px-3 py-1.5 bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-100"
+              title="Clear strikes for all students in room"
+            >
+              <RotateCcw className="w-3.5 h-3.5 mr-1 text-amber-600" />
+              Reset All Strikes
+            </Button>
+          )}
+
           <Button
             size="sm"
             onClick={handleToggle}

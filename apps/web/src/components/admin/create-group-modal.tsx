@@ -8,10 +8,7 @@ interface CreateGroupModalProps {
   onSubmit: (name: string, timeLimit: number) => Promise<void>;
 }
 
-export function CreateGroupModal({
-  onClose,
-  onSubmit,
-}: CreateGroupModalProps) {
+export function CreateGroupModal({ onClose, onSubmit }: CreateGroupModalProps) {
   const [name, setName] = useState("");
   const [timeLimit, setTimeLimit] = useState(30);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,14 +32,9 @@ export function CreateGroupModal({
         onSubmit={handleSubmit}
         className="bg-white border border-zinc-200 rounded-2xl p-6 w-full max-w-md shadow-xl space-y-4"
       >
-        <h3 className="font-bold text-zinc-900 text-base">
-          Create Exam Group
-        </h3>
+        <h3 className="font-bold text-zinc-900 text-base">Create Exam Group</h3>
         <div>
-          <label
-            htmlFor="create-group-name"
-            className="block text-xs font-mono uppercase text-zinc-500 mb-1"
-          >
+          <label htmlFor="create-group-name" className="block text-xs font-mono uppercase text-zinc-500 mb-1">
             Group Name
           </label>
           <input
@@ -55,19 +47,14 @@ export function CreateGroupModal({
           />
         </div>
         <div>
-          <label
-            htmlFor="create-group-time-limit"
-            className="block text-xs font-mono uppercase text-zinc-500 mb-1"
-          >
+          <label htmlFor="create-group-time-limit" className="block text-xs font-mono uppercase text-zinc-500 mb-1">
             Default Time Limit (Mins)
           </label>
           <input
             id="create-group-time-limit"
             type="number"
             value={timeLimit}
-            onChange={(e) =>
-              setTimeLimit(Number.parseInt(e.target.value, 10) || 30)
-            }
+            onChange={(e) => setTimeLimit(Number.parseInt(e.target.value, 10) || 30)}
             className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-zinc-900"
           />
         </div>
@@ -82,12 +69,7 @@ export function CreateGroupModal({
           >
             Cancel
           </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            size="sm"
-            disabled={isSubmitting}
-          >
+          <Button type="submit" variant="primary" size="sm" disabled={isSubmitting}>
             {isSubmitting ? "Generating..." : "Generate Room"}
           </Button>
         </div>

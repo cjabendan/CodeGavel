@@ -175,7 +175,7 @@ export const examService = {
     await pb.collection("exam_sessions").update(sessionId, { current_code: code }, { requestKey: null });
   },
 
- async incrementStrike(sessionId: string, currentStrikes: number): Promise<number> {
+  async incrementStrike(sessionId: string, currentStrikes: number): Promise<number> {
     if (!sessionId) return currentStrikes;
 
     const nextStrikes = currentStrikes + 1;

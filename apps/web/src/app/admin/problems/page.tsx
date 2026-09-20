@@ -18,10 +18,10 @@ export default function ProblemsPage() {
   const loadProblems = useCallback(async () => {
     try {
       const list = await problemService.getProblems();
-      setProblems(list);
-    } catch (err: any) {
+      setProblems(Array.isArray(list) ? list : []);
+    } catch (err: unknown) {
       // Ignore autocancelled errors
-      if (err?.isAbort) return;
+      if ((err as { isAbort?: boolean })?.isAbort) return;
       console.error("Failed to load problems:", err);
     }
   }, []);
@@ -35,7 +35,7 @@ export default function ProblemsPage() {
       try {
         await problemService.deleteProblem(id);
         await loadProblems();
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Failed to delete problem:", err);
       }
     }
@@ -74,8 +74,12 @@ export default function ProblemsPage() {
         </div>
       </main>
 
-      <ProblemImportModal isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} onSuccess={loadProblems} />
-      <CreateProblemModal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} onSuccess={loadProblems} />
+      {isImportOpen && (
+        <ProblemImportModal isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} onSuccess={loadProblems} />
+      )}
+      {isCreateOpen && (
+        <CreateProblemModal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} onSuccess={loadProblems} />
+      )}
     </div>
   );
 }

@@ -23,7 +23,7 @@ function ExamWorkspaceContent() {
   const [session, setSession] = useState<ExamSession | null>(null);
   const [studentName, setStudentName] = useState("");
   const [code, setCode] = useState<string>(
-    '// Write your C code solution here\n#include <stdio.h>\n\nint main() {\n    int num;\n    printf("Enter number: ");\n    scanf("%d", &num);\n    printf("You entered: %d\\n", num);\n    return 0;\n}'
+    '// Write your C code solution here\n#include <stdio.h>\n\nint main() {\n    int num;\n    printf("Enter number: ");\n    scanf("%d", &num);\n    printf("You entered: %d\\n", num);\n    return 0;\n}',
   );
   const [isSaving, setIsSaving] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);

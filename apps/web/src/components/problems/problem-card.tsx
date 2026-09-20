@@ -2,7 +2,7 @@
 
 import { CheckCircle2, Clock, Code, HardDrive, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { Problem } from "@/lib/services/problem-services"; 
+import type { Problem } from "@/lib/services/problem-services";
 
 interface ProblemCardProps {
   problem: Problem;
@@ -38,7 +38,21 @@ export function ProblemCard({ problem, onDelete }: ProblemCardProps) {
       <div className="pt-3 border-t border-zinc-200 flex items-center justify-between text-xs font-mono">
         <div className="flex items-center gap-1.5 text-zinc-500 text-[11px]">
           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-          <span>{problem.test_cases?.length || 0} Test Cases</span>
+          <span>
+            {Array.isArray(problem.test_cases)
+              ? problem.test_cases.length
+              : typeof problem.test_cases === "string"
+                ? (() => {
+                    try {
+                      const parsed = JSON.parse(problem.test_cases);
+                      return Array.isArray(parsed) ? parsed.length : 0;
+                    } catch {
+                      return 0;
+                    }
+                  })()
+                : 0}{" "}
+            Test Cases
+          </span>
         </div>
 
         <Button

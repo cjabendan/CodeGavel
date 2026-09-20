@@ -50,12 +50,8 @@ export function LoginForm() {
         <div className="mx-auto w-10 h-10 bg-zinc-900 text-white rounded-xl flex items-center justify-center mb-3 shadow-sm">
           <Lock className="w-5 h-5" />
         </div>
-        <h2 className="text-xl font-bold text-zinc-900 tracking-tight">
-          Instructor Portal
-        </h2>
-        <p className="text-xs text-zinc-500 mt-1">
-          Authenticate with your instructor account to access exam sessions.
-        </p>
+        <h2 className="text-xl font-bold text-zinc-900 tracking-tight">Instructor Portal</h2>
+        <p className="text-xs text-zinc-500 mt-1">Authenticate with your instructor account to access exam sessions.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -113,11 +109,7 @@ export function LoginForm() {
               className="absolute right-3 top-3 text-zinc-400 hover:text-zinc-600 transition-colors"
               tabIndex={-1}
             >
-              {showPassword ? (
-                <EyeOff className="w-4 h-4" />
-              ) : (
-                <Eye className="w-4 h-4" />
-              )}
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
         </div>

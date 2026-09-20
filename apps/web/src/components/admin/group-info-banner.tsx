@@ -90,8 +90,8 @@ export function GroupInfoBanner({
               className="font-mono text-xs font-semibold px-3 py-1.5 bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-100"
               title="Add 5 minutes to all active sessions in room"
             >
-              <Clock className="w-3.5 h-3.5 mr-1 text-blue-600" />
-              +5m All
+              <Clock className="w-3.5 h-3.5 mr-1 " />
+              Add Time
             </Button>
           )}
 
@@ -104,8 +104,8 @@ export function GroupInfoBanner({
               className="font-mono text-xs font-semibold px-3 py-1.5 bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-100"
               title="Clear strikes for all students in room"
             >
-              <RotateCcw className="w-3.5 h-3.5 mr-1 text-amber-600" />
-              Reset All Strikes
+              <RotateCcw className="w-3.5 h-3.5 mr-1 " />
+              Reset Strikes
             </Button>
           )}
 

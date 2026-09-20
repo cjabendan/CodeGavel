@@ -143,7 +143,7 @@ export const TerminalOutput = forwardRef<TerminalOutputRef, TerminalOutputProps>
   return (
     <div className="h-full flex flex-col bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden font-mono">
       <div className="p-2.5 bg-zinc-900 border-b border-zinc-800 flex justify-between items-center">
-        <span className="text-xs text-zinc-400 font-semibold px-2">Interactive Terminal</span>
+        <span className="text-xs text-zinc-400 font-semibold px-2">Terminal</span>
 
         <div className="flex items-center gap-2 px-2">
           <span

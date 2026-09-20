@@ -107,6 +107,7 @@ migrate((app) => {
       },
       { name: "terminal_output", type: "text", required: false },
       { name: "time_started", type: "date", required: false },
+      { name: "paused_at", type: "date", required: false },
       { name: "time_ended", type: "date", required: false },
     ],
     indexes: ["CREATE INDEX idx_session_group ON exam_sessions (group_code)"],

@@ -16,6 +16,7 @@ export interface ExamSession {
   execution_status?: "idle" | "pending" | "running" | "completed" | "passed" | "failed" | "compile_error" | "error";
   terminal_output?: string;
   time_started?: string;
+  paused_at?: string;
   updated?: string;
   time_ended?: string;
   expand?: {
@@ -174,7 +175,7 @@ export const examService = {
     await pb.collection("exam_sessions").update(sessionId, { current_code: code }, { requestKey: null });
   },
 
-  async incrementStrike(sessionId: string, currentStrikes: number): Promise<number> {
+ async incrementStrike(sessionId: string, currentStrikes: number): Promise<number> {
     if (!sessionId) return currentStrikes;
 
     const nextStrikes = currentStrikes + 1;
@@ -184,7 +185,12 @@ export const examService = {
       sessionId,
       {
         strike_count: nextStrikes,
-        ...(isLocked ? { status: "locked_strike" } : {}),
+        ...(isLocked
+          ? {
+              status: "locked_strike",
+              paused_at: new Date().toISOString(),
+            }
+          : {}),
       },
       { requestKey: null },
     );

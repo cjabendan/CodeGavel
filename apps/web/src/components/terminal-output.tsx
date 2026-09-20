@@ -129,7 +129,7 @@ export const TerminalOutput = forwardRef<TerminalOutputRef, TerminalOutputProps>
           code,
           cols: termRef.current.cols,
           rows: termRef.current.rows,
-        })
+        }),
       );
     } else {
       termRef.current?.writeln("\x1b[31m[Error: Terminal runner offline. Waiting for connection...]\x1b[0m\r\n");
@@ -148,20 +148,12 @@ export const TerminalOutput = forwardRef<TerminalOutputRef, TerminalOutputProps>
         <div className="flex items-center gap-2 px-2">
           <span
             className={`w-2 h-2 rounded-full ${
-              isConnected
-                ? isExecuting
-                  ? "bg-amber-400 animate-ping"
-                  : "bg-emerald-500 animate-pulse"
-                : "bg-red-500"
+              isConnected ? (isExecuting ? "bg-amber-400 animate-ping" : "bg-emerald-500 animate-pulse") : "bg-red-500"
             }`}
           />
           <span
             className={`text-xs font-semibold ${
-              isConnected
-                ? isExecuting
-                  ? "text-amber-400"
-                  : "text-emerald-400"
-                : "text-red-400"
+              isConnected ? (isExecuting ? "text-amber-400" : "text-emerald-400") : "text-red-400"
             }`}
           >
             {isConnected ? (isExecuting ? "Executing..." : "Online") : "Offline"}

@@ -44,7 +44,7 @@ export async function POST(req: Request) {
 
     // 1. Compile C Code
     try {
-     await execAsync(`"${gccPath}" "${sourcePath}" -o "${exePath}"`);
+      await execAsync(`"${gccPath}" "${sourcePath}" -o "${exePath}"`);
     } catch (compileErr: unknown) {
       const err = compileErr as { stderr?: string };
       const output = err.stderr || "Compilation failed with unknown error.";

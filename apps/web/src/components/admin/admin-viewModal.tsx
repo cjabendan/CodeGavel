@@ -117,7 +117,6 @@ export function CodeViewerModal({ session, onClose }: Props) {
             {/* Collapsible Expected Output */}
             <div className="border-t border-zinc-800 pt-3 flex flex-col shrink-0">
               <div className="flex items-center justify-end select-none">
-  
                 <Button
                   type="button"
                   variant="ghost"
@@ -125,7 +124,11 @@ export function CodeViewerModal({ session, onClose }: Props) {
                   onClick={() => setShowExpectedOutput((prev) => !prev)}
                   className="h-6 px-2 text-[10px] bg-zinc-800 hover:bg-zinc-700 text-zinc-100 hover:text-white flex items-center gap-1 rounded transition"
                 >
-                  {showExpectedOutput ? <EyeOff className="w-3 h-3 text-zinc-500" /> : <Eye className="w-3 h-3 text-zinc-300" />}
+                  {showExpectedOutput ? (
+                    <EyeOff className="w-3 h-3 text-zinc-500" />
+                  ) : (
+                    <Eye className="w-3 h-3 text-zinc-300" />
+                  )}
                   <span className={`${showExpectedOutput ? "text-zinc-400" : "text-zinc-300"}`}>
                     {showExpectedOutput ? "Hide Expected Output" : "Show Expected Output"}
                   </span>
@@ -137,7 +140,7 @@ export function CodeViewerModal({ session, onClose }: Props) {
                   {assignedProblem?.test_cases && assignedProblem.test_cases.length > 0 ? (
                     assignedProblem.test_cases.map((tc, index) => (
                       <div
-                        key={`tc-${assignedProblem.id || "prob"}-${index}`}
+                        key={`tc-${assignedProblem.id || "prob"}-${tc.input}-${tc.output}`}
                         className="bg-black/60 border border-zinc-800 rounded-lg p-2.5 text-[11px]"
                       >
                         {assignedProblem.test_cases.length > 1 && (

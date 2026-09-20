@@ -10,7 +10,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [mounted, setMounted] = useState(false);
   const [isAuthorized, setIsAuthorized] = useState(false);
 
-  
   const isLoginPage = pathname === "/admin" || pathname === "/admin/";
 
   useEffect(() => {
@@ -22,7 +21,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       pb.authStore.record?.collectionName === "_superusers" ||
       pb.authStore.record?.role === "admin";
 
-  
     if (isLoginPage && isValid && isSystemAdmin) {
       router.replace("/admin/dashboard");
       return;

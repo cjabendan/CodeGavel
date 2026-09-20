@@ -39,7 +39,7 @@ export function useAntiCheat({ sessionId, enabled, status, strikeCount, onStrike
       } finally {
         setTimeout(() => {
           isProcessingRef.current = false;
-        }, 1500); 
+        }, 1500);
       }
     };
 

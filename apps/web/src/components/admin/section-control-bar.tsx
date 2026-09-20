@@ -54,12 +54,7 @@ export function SectionControlBar({
       </div>
 
       <div className="flex items-center gap-2">
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={onOpenGroupModal}
-          disabled={!selectedSection}
-        >
+        <Button variant="primary" size="sm" onClick={onOpenGroupModal} disabled={!selectedSection}>
           <Plus className="w-3.5 h-3.5" /> Create Exam Group
         </Button>
       </div>

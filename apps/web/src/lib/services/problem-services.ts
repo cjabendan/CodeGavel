@@ -29,9 +29,14 @@ export const problemService = {
         requestKey: null,
       });
     } catch (_err) {
-      return await pb.collection("problems").getFullList<Problem>({
-        requestKey: null,
-      });
+      try {
+        return await pb.collection("problems").getFullList<Problem>({
+          requestKey: null,
+        });
+      } catch (innerErr) {
+        console.error("Failed to fetch problems from PocketBase:", innerErr);
+        return [];
+      }
     }
   },
 

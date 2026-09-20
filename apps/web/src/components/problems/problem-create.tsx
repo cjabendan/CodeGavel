@@ -15,13 +15,20 @@ interface CreateProblemModalProps {
   onSuccess: () => void;
 }
 
+function generateId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
 export function CreateProblemModal({ isOpen, onClose, onSuccess }: CreateProblemModalProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [timeLimit, setTimeLimit] = useState(2.0);
   const [memoryLimit, setMemoryLimit] = useState(128);
   const [testCases, setTestCases] = useState<FormTestCase[]>([
-    { id: crypto.randomUUID(), input: "", output: "", is_hidden: false },
+    { id: generateId(), input: "", output: "", is_hidden: false },
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -29,7 +36,7 @@ export function CreateProblemModal({ isOpen, onClose, onSuccess }: CreateProblem
   if (!isOpen) return null;
 
   const addTestCase = () => {
-    setTestCases((prev) => [...prev, { id: crypto.randomUUID(), input: "", output: "", is_hidden: false }]);
+    setTestCases((prev) => [...prev, { id: generateId(), input: "", output: "", is_hidden: false }]);
   };
 
   const removeTestCase = (id: string) => {

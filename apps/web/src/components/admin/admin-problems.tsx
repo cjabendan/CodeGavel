@@ -3,6 +3,7 @@
 import { AlertCircle, CheckCircle2, FileSpreadsheet, Loader2, Upload, X } from "lucide-react";
 import { useState } from "react";
 import * as XLSX from "xlsx";
+import { adminService } from "@/lib/services/admin-services";
 import type { Problem } from "@/lib/services/problem-services";
 
 interface Props {
@@ -33,7 +34,7 @@ export function ProblemImportModal({ isOpen, onClose, onSuccess }: Props) {
         const wb = XLSX.read(bstr, { type: "binary" });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
-        const rawData: any[] = XLSX.utils.sheet_to_json(ws);
+        const rawData = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws);
 
         const formatted: Omit<Problem, "id" | "created">[] = rawData.map((row) => {
           let testCases = [];
@@ -48,10 +49,10 @@ export function ProblemImportModal({ isOpen, onClose, onSuccess }: Props) {
           }
 
           return {
-            title: row.title || "Untitled Problem",
-            description: row.description || "",
-            time_limit_sec: parseFloat(row.time_limit_sec) || 2.0,
-            memory_limit_mb: parseInt(row.memory_limit_mb) || 128,
+            title: typeof row.title === "string" ? row.title : "Untitled Problem",
+            description: typeof row.description === "string" ? row.description : "",
+            time_limit_sec: parseFloat(String(row.time_limit_sec)) || 2.0,
+            memory_limit_mb: parseInt(String(row.memory_limit_mb), 10) || 128,
             test_cases: testCases,
           };
         });
@@ -72,8 +73,9 @@ export function ProblemImportModal({ isOpen, onClose, onSuccess }: Props) {
       await adminService.importProblemsBatch(parsedItems);
       onSuccess();
       onClose();
-    } catch (err: any) {
-      setError(err?.message || "Failed to save problems to database.");
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : (err as { message?: string })?.message;
+      setError(errorMsg || "Failed to save problems to database.");
     } finally {
       setIsUploading(false);
     }
@@ -87,7 +89,7 @@ export function ProblemImportModal({ isOpen, onClose, onSuccess }: Props) {
             <FileSpreadsheet className="w-5 h-5 text-zinc-900" />
             <h3 className="font-bold text-zinc-900 text-base">Import Problems (.xlsx)</h3>
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-zinc-100 rounded-lg text-zinc-500">
+          <button type="button" onClick={onClose} className="p-1 hover:bg-zinc-100 rounded-lg text-zinc-500">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -123,12 +125,14 @@ export function ProblemImportModal({ isOpen, onClose, onSuccess }: Props) {
 
         <div className="flex items-center justify-end gap-3 pt-4 border-t border-zinc-200">
           <button
+            type="button"
             onClick={onClose}
             className="px-4 py-2 border border-zinc-200 rounded-lg text-xs font-medium text-zinc-600 hover:bg-zinc-50"
           >
             Cancel
           </button>
           <button
+            type="button"
             onClick={handleImport}
             disabled={parsedItems.length === 0 || isUploading}
             className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 text-white rounded-lg text-xs font-medium flex items-center gap-2 shadow-sm"

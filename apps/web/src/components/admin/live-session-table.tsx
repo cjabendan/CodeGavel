@@ -21,7 +21,7 @@ export function LiveSessionTable({ sessions, roomCode, onInspect }: LiveSessionT
           <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-800">Live Session Monitoring</h3>
         </div>
         <div>
-            <span className="text-xs font-mono text-zinc-400">Current: {sessions.length} records</span>
+          <span className="text-xs font-mono text-zinc-400">Current: {sessions.length} records</span>
         </div>
       </div>
 
@@ -46,7 +46,6 @@ export function LiveSessionTable({ sessions, roomCode, onInspect }: LiveSessionT
               </tr>
             ) : (
               sessions.map((session) => {
-              
                 return (
                   <tr key={session.id} className="hover:bg-zinc-50/80 transition-colors">
                     <td className="px-6 py-4 font-semibold text-zinc-900">{session.student_name}</td>
@@ -71,7 +70,6 @@ export function LiveSessionTable({ sessions, roomCode, onInspect }: LiveSessionT
                     <td className="px-6 py-4 font-mono">
                       <div className="flex items-center gap-1.5">
                         <span>{session.time_limit_min} mins</span>
-                    
                       </div>
                     </td>
                     <td className="px-6 py-4">

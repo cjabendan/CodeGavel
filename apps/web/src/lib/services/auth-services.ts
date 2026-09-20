@@ -20,7 +20,7 @@ export const authService = {
    */
   isLoggedIn() {
     if (!pb.authStore.isValid) return false;
-    
+
     // Checks for superuser record or legacy admin model
     const isSuperuserRecord = pb.authStore.record?.collectionName === "_superusers";
     return pb.authStore.isAdmin || pb.authStore.isSuperuser || isSuperuserRecord;

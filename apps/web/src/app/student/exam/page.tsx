@@ -6,6 +6,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { CodeMirrorEditor } from "@/components/code-editor";
 import { CountdownOverlay } from "@/components/countdown-overlay";
 import { ExamStatusOverlay } from "@/components/exam-status-overlay";
+import { FullscreenPromptModal } from "@/components/fullscreen-prompt-modal";
 import { ProblemDescription } from "@/components/problem-description";
 import { ExamHeader } from "@/components/student/student-header";
 import { TerminalOutput, type TerminalOutputRef } from "@/components/terminal-output"; // <-- Updated import
@@ -80,15 +81,24 @@ function ExamWorkspaceContent() {
     loadSession();
   }, [loadSession]);
 
-  useAntiCheat({
+  const antiCheatEnabled = !!session?.expand?.group?.anti_cheat_enabled;
+
+  const { isFullscreen, requestFullscreen } = useAntiCheat({
     sessionId: session?.id || sessionIdParam,
-    enabled: !!session?.expand?.group?.anti_cheat_enabled,
+    enabled: antiCheatEnabled,
     status: session?.status || "",
     strikeCount: session?.strike_count || 0,
     onStrikeRecorded: (newStrikeCount) => {
       setSession((prev) => (prev ? { ...prev, strike_count: newStrikeCount } : null));
     },
   });
+
+  // Show the fullscreen prompt whenever anti-cheat is on, the session is
+  // active, and the browser is not in fullscreen (initial entry or violation).
+  const showFullscreenPrompt = antiCheatEnabled && session?.status === "active" && !isFullscreen;
+
+  // Whether this is a re-entry prompt (student already entered FS once and left).
+  const isFullscreenViolation = showFullscreenPrompt && session !== null;
 
   const handleTimeout = useCallback(async () => {
     const curSession = sessionRef.current;
@@ -360,6 +370,11 @@ function ExamWorkspaceContent() {
       </main>
 
       {!isOverlayDismissed && <ExamStatusOverlay status={session.status} onClose={() => setIsOverlayDismissed(true)} />}
+
+      {/* Fullscreen enforcement — rendered on top of everything else (z-[60]) */}
+      {showFullscreenPrompt && (
+        <FullscreenPromptModal isViolation={isFullscreenViolation} onRequestFullscreen={requestFullscreen} />
+      )}
     </div>
   );
 }

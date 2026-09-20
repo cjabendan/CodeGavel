@@ -1,6 +1,7 @@
 "use client";
 
-import { Clock, Play, Send, ShieldAlert, User } from "lucide-react";
+import { Clock, LogOut, Play, Send, ShieldAlert, User } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { ExamSession } from "@/lib/services/exam-services";
@@ -14,18 +15,27 @@ interface ExamHeaderProps {
 }
 
 export function ExamHeader({ session, onRunCode, onSubmitExam, isSaving, isExecuting }: ExamHeaderProps) {
+  const router = useRouter();
   const [timeLeftStr, setTimeLeftStr] = useState<string>("--:--");
 
   useEffect(() => {
-    if (!session.time_started || session.status !== "active") return;
+    if (!session.time_started) return;
 
     const startTime = new Date(session.time_started).getTime();
     const durationMs = session.time_limit_min * 60 * 1000;
     const endTime = startTime + durationMs;
 
     const updateTimer = () => {
-      const now = Date.now();
-      const diff = endTime - now;
+      let nowMs = Date.now();
+      if (session.status !== "active") {
+        if (session.paused_at) {
+          nowMs = new Date(session.paused_at).getTime();
+        } else if (session.updated) {
+          nowMs = new Date(session.updated).getTime();
+        }
+      }
+
+      const diff = endTime - nowMs;
 
       if (diff <= 0) {
         setTimeLeftStr("00:00");
@@ -39,15 +49,18 @@ export function ExamHeader({ session, onRunCode, onSubmitExam, isSaving, isExecu
     };
 
     updateTimer();
-    const interval = setInterval(() => {
-      const active = updateTimer();
-      if (!active) {
-        clearInterval(interval);
-      }
-    }, 1000);
 
-    return () => clearInterval(interval);
-  }, [session.time_started, session.time_limit_min, session.status]);
+    if (session.status === "active") {
+      const interval = setInterval(() => {
+        const active = updateTimer();
+        if (!active) {
+          clearInterval(interval);
+        }
+      }, 1000);
+
+      return () => clearInterval(interval);
+    }
+  }, [session.time_started, session.time_limit_min, session.status, session.paused_at, session.updated]);
 
   return (
     <header className="bg-white border-b border-zinc-200 px-6 py-3 flex items-center justify-between sticky top-0 z-20">
@@ -99,10 +112,23 @@ export function ExamHeader({ session, onRunCode, onSubmitExam, isSaving, isExecu
           <span>Run Tests</span>
         </Button>
 
-        <Button type="button" variant="primary" size="sm" onClick={onSubmitExam} disabled={session.status !== "active"}>
-          <Send className="w-3.5 h-3.5" />
-          <span>Submit Solution</span>
-        </Button>
+        {session.status === "active" ? (
+          <Button type="button" variant="primary" size="sm" onClick={onSubmitExam}>
+            <Send className="w-3.5 h-3.5" />
+            <span>Submit Solution</span>
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => router.push("/")}
+            className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Exit Exam</span>
+          </Button>
+        )}
       </div>
     </header>
   );

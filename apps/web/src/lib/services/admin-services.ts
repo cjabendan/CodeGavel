@@ -119,45 +119,49 @@ export const adminService = {
   },
 
   async addStudentTime(sessionId: string, currentMins: number, extraMins: number) {
+    const session = await pb.collection("exam_sessions").getOne<ExamSession>(sessionId, { requestKey: null });
+    const isTimeout = session.status === "timeout";
+
     return await pb.collection("exam_sessions").update(sessionId, {
       time_limit_min: currentMins + extraMins,
+      ...(isTimeout ? { status: "active", time_ended: null } : {}),
     });
   },
 
   async addTimeToAllSessions(groupId: string, extraMins: number = 5): Promise<void> {
     const sessions = await this.getSessionsByGroup(groupId);
-    const activeSessions = sessions.filter(
-      (s) => s.status === "active" || s.status === "locked_strike" || s.status === "paused",
+
+    const targetSessions = sessions.filter(
+      (s) => s.status === "active" || s.status === "locked_strike" || s.status === "paused" || s.status === "timeout",
     );
 
     await Promise.all(
-      activeSessions.map((session) =>
-        pb.collection("exam_sessions").update(session.id, {
+      targetSessions.map((session) => {
+        const isTimeout = session.status === "timeout";
+        return pb.collection("exam_sessions").update(session.id, {
           time_limit_min: session.time_limit_min + extraMins,
-        }),
-      ),
+          ...(isTimeout ? { status: "active", time_ended: null } : {}),
+        });
+      }),
     );
   },
-
   /***
    *  Clear Student Strikes and Reset Time Started
    */
 
   async clearStudentStrikes(sessionId: string) {
-    // 1. Fetch current session to calculate locked duration
     const session = await pb.collection("exam_sessions").getOne<ExamSession>(sessionId, { requestKey: null });
 
     let updatedTimeStarted = session.time_started;
 
-    // 2. If session was locked/paused, shift time_started forward by elapsed locked time
-    if (
-      (session.status === "locked_strike" || session.status === "paused") &&
-      session.time_started &&
-      session.updated
-    ) {
-      const lockedAt = new Date(session.updated).getTime();
-      const pausedDurationMs = Math.max(0, Date.now() - lockedAt);
+    if ((session.status === "locked_strike" || session.status === "paused") && session.time_started) {
+      const pauseTimeMs = session.paused_at
+        ? new Date(session.paused_at).getTime()
+        : session.updated
+          ? new Date(session.updated).getTime()
+          : Date.now();
 
+      const pausedDurationMs = Math.max(0, Date.now() - pauseTimeMs);
       const oldStartMs = new Date(session.time_started).getTime();
       updatedTimeStarted = new Date(oldStartMs + pausedDurationMs).toISOString();
     }
@@ -168,36 +172,47 @@ export const adminService = {
         strike_count: 0,
         status: "active",
         time_started: updatedTimeStarted,
+        paused_at: null,
       },
       { requestKey: null },
     );
   },
 
   async clearAllStrikesInGroup(groupId: string): Promise<void> {
-  const sessions = await this.getSessionsByGroup(groupId);
-  const strikedSessions = sessions.filter((s) => s.strike_count > 0 || s.status === "locked_strike");
+    const sessions = await this.getSessionsByGroup(groupId);
+    const strikedSessions = sessions.filter((s) => s.strike_count > 0 || s.status === "locked_strike");
 
-  const now = Date.now();
+    const now = Date.now();
 
-  await Promise.all(
-    strikedSessions.map((session) => {
-      let updatedTimeStarted = session.time_started;
+    await Promise.all(
+      strikedSessions.map((session) => {
+        let updatedTimeStarted = session.time_started;
 
-      if ((session.status === "locked_strike" || session.status === "paused") && session.time_started && session.updated) {
-        const lockedAt = new Date(session.updated).getTime();
-        const pausedDurationMs = Math.max(0, now - lockedAt);
-        const oldStartMs = new Date(session.time_started).getTime();
-        updatedTimeStarted = new Date(oldStartMs + pausedDurationMs).toISOString();
-      }
+        if ((session.status === "locked_strike" || session.status === "paused") && session.time_started) {
+          const pauseTimeMs = session.paused_at
+            ? new Date(session.paused_at).getTime()
+            : session.updated
+              ? new Date(session.updated).getTime()
+              : now;
 
-      return pb.collection("exam_sessions").update(session.id, {
-        strike_count: 0,
-        status: session.status === "locked_strike" ? "active" : session.status,
-        time_started: updatedTimeStarted,
-      }, { requestKey: null });
-    }),
-  );
-},
+          const pausedDurationMs = Math.max(0, now - pauseTimeMs);
+          const oldStartMs = new Date(session.time_started).getTime();
+          updatedTimeStarted = new Date(oldStartMs + pausedDurationMs).toISOString();
+        }
+
+        return pb.collection("exam_sessions").update(
+          session.id,
+          {
+            strike_count: 0,
+            status: session.status === "locked_strike" ? "active" : session.status,
+            time_started: updatedTimeStarted,
+            paused_at: null,
+          },
+          { requestKey: null },
+        );
+      }),
+    );
+  },
 
   async deleteStudentSession(sessionId: string) {
     return await pb.collection("exam_sessions").delete(sessionId);

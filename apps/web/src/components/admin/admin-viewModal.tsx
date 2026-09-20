@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Clock, Code, Copy, Shield, Terminal, X } from "lucide-react";
+import { Check, Clock, Code, Copy, Eye, EyeOff, Shield, Terminal, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { ExamSession } from "@/lib/services/exam-services";
@@ -12,8 +12,13 @@ interface Props {
 
 export function CodeViewerModal({ session, onClose }: Props) {
   const [copied, setCopied] = useState(false);
+  const [showExpectedOutput, setShowExpectedOutput] = useState(false);
 
   if (!session) return null;
+
+  const assignedProblem = session.expand?.assigned_problem;
+
+  const formatText = (text: string = "") => text.replaceAll("\\n", "\n");
 
   const handleCopyCode = async () => {
     if (!session.current_code) return;
@@ -38,7 +43,7 @@ export function CodeViewerModal({ session, onClose }: Props) {
             <div>
               <h3 className="text-sm font-bold text-zinc-900">{session.student_name}</h3>
               <p className="text-xs text-zinc-500 font-mono">
-                Room: {session.group_code} • Problem: {session.expand?.assigned_problem?.title || "Assigned"}
+                Room: {session.group_code} • Problem: {assignedProblem?.title || "Assigned"}
               </p>
             </div>
           </div>
@@ -97,14 +102,60 @@ export function CodeViewerModal({ session, onClose }: Props) {
             </pre>
           </div>
 
-          {/* Execution Terminal */}
-          <div className="p-4 flex flex-col bg-zinc-900 text-zinc-300 font-mono text-xs overflow-auto">
-            <div className="flex items-center gap-1.5 text-zinc-100 text-[11px] uppercase mb-2 select-none border-b border-zinc-800 pb-2 font-semibold">
-              <Terminal className="w-4 h-4" /> Terminal Output
+          {/* Right Column: Execution Terminal & Expected Output */}
+          <div className="p-4 flex flex-col bg-zinc-900 text-zinc-300 font-mono text-xs overflow-auto gap-4">
+            {/* Terminal Output */}
+            <div className="flex flex-col flex-1 min-h-[140px]">
+              <div className="flex items-center gap-1.5 text-zinc-100 text-[11px] uppercase mb-2 select-none border-b border-zinc-800 pb-2 font-semibold">
+                <Terminal className="w-4 h-4" /> Terminal Output
+              </div>
+              <pre className="whitespace-pre-wrap font-mono text-emerald-400 text-xs flex-1 overflow-auto">
+                {session.terminal_output || "No runtime output recorded."}
+              </pre>
             </div>
-            <pre className="whitespace-pre-wrap font-mono text-emerald-400 text-xs flex-1">
-              {session.terminal_output || "No runtime output recorded."}
-            </pre>
+
+            {/* Collapsible Expected Output */}
+            <div className="border-t border-zinc-800 pt-3 flex flex-col shrink-0">
+              <div className="flex items-center justify-end select-none">
+  
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowExpectedOutput((prev) => !prev)}
+                  className="h-6 px-2 text-[10px] bg-zinc-800 hover:bg-zinc-700 text-zinc-100 hover:text-white flex items-center gap-1 rounded transition"
+                >
+                  {showExpectedOutput ? <EyeOff className="w-3 h-3 text-zinc-500" /> : <Eye className="w-3 h-3 text-zinc-300" />}
+                  <span className={`${showExpectedOutput ? "text-zinc-400" : "text-zinc-300"}`}>
+                    {showExpectedOutput ? "Hide Expected Output" : "Show Expected Output"}
+                  </span>
+                </Button>
+              </div>
+
+              {showExpectedOutput && (
+                <div className="mt-3 space-y-2 max-h-[180px] overflow-y-auto animate-in fade-in duration-150">
+                  {assignedProblem?.test_cases && assignedProblem.test_cases.length > 0 ? (
+                    assignedProblem.test_cases.map((tc, index) => (
+                      <div
+                        key={`tc-${assignedProblem.id || "prob"}-${index}`}
+                        className="bg-black/60 border border-zinc-800 rounded-lg p-2.5 text-[11px]"
+                      >
+                        {assignedProblem.test_cases.length > 1 && (
+                          <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-bold block mb-1">
+                            Test Case #{index + 1}
+                          </span>
+                        )}
+                        <pre className="whitespace-pre-wrap text-zinc-300 font-mono leading-relaxed">
+                          {formatText(tc.output)}
+                        </pre>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-zinc-500 text-[11px] italic py-1">No expected output specified.</p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

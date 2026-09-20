@@ -2,8 +2,8 @@
 
 import { AlertCircle, CheckCircle2, FileSpreadsheet, Loader2, Upload, X } from "lucide-react";
 import { useState } from "react";
-// import * as XLSX from "xlsx";
-import { adminService, type Problem } from "@/lib/services/admin-services";
+import * as XLSX from "xlsx";
+import type { Problem } from "@/lib/services/problem-services";
 
 interface Props {
   isOpen: boolean;

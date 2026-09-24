@@ -9,7 +9,7 @@ export interface ExamSession {
   group_code: string;
   assigned_problem: string;
   current_code: string;
-  stdin?: string; // Add stdin field definition
+  stdin?: string;
   time_limit_min: number;
   strike_count: number;
   status: "waiting" | "active" | "paused" | "locked_strike" | "submitted" | "timeout";
@@ -219,11 +219,31 @@ export const examService = {
       sessionId,
       {
         current_code: code,
-        stdin: stdinInput, // Store standard input string in PocketBase
-        execution_status: "pending",
-        terminal_output: "Execution queued. Waiting for worker...",
+        stdin: stdinInput,
+        execution_status: "running",
+        terminal_output: "Execution queued. Running code...",
       },
       { requestKey: null },
     );
+  },
+
+  /**
+   * Save complete compiled terminal output to PocketBase
+   */
+  async saveTerminalOutput(sessionId: string, output: string): Promise<void> {
+    if (!sessionId) return;
+
+    try {
+      await pb.collection("exam_sessions").update(
+        sessionId,
+        {
+          terminal_output: output,
+          execution_status: "completed",
+        },
+        { requestKey: null },
+      );
+    } catch (err) {
+      console.error("Failed to save terminal output to PocketBase:", err);
+    }
   },
 };

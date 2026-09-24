@@ -118,14 +118,56 @@ export const adminService = {
     };
   },
 
-  async addStudentTime(sessionId: string, currentMins: number, extraMins: number) {
+  async addStudentTime(sessionId: string, extraMins: number) {
     const session = await pb.collection("exam_sessions").getOne<ExamSession>(sessionId, { requestKey: null });
-    const isTimeout = session.status === "timeout";
 
-    return await pb.collection("exam_sessions").update(sessionId, {
-      time_limit_min: currentMins + extraMins,
-      ...(isTimeout ? { status: "active", time_ended: null } : {}),
-    });
+    // Terminal statuses that should not be reopened by adding time.
+    const isTerminal = session.status === "submitted";
+
+    if (isTerminal) {
+      // Only extend the time limit — do not change anything else for submitted sessions.
+      return await pb.collection("exam_sessions").update(
+        sessionId,
+        { time_limit_min: session.time_limit_min + extraMins },
+        { requestKey: null },
+      );
+    }
+
+    // For any non-terminal status (active, paused, locked_strike, timeout, waiting),
+    // force the session back to "active" so the student can continue.
+    // When the session was paused/locked, advance time_started by the paused
+    // duration so the extra minutes aren't silently consumed by elapsed pause time.
+    const wasPaused =
+      session.status === "locked_strike" ||
+      session.status === "paused" ||
+      session.status === "timeout";
+
+    let updatedTimeStarted = session.time_started;
+
+    if (wasPaused && session.time_started) {
+      const pauseTimeMs = session.paused_at
+        ? new Date(session.paused_at).getTime()
+        : session.updated
+          ? new Date(session.updated).getTime()
+          : Date.now();
+
+      const pausedDurationMs = Math.max(0, Date.now() - pauseTimeMs);
+      const oldStartMs = new Date(session.time_started).getTime();
+      updatedTimeStarted = new Date(oldStartMs + pausedDurationMs).toISOString();
+    }
+
+    return await pb.collection("exam_sessions").update(
+      sessionId,
+      {
+        time_limit_min: session.time_limit_min + extraMins,
+        status: "active",
+        time_started: updatedTimeStarted,
+        paused_at: null,
+        // Clear time_ended in case the session had timed out previously.
+        ...(session.status === "timeout" ? { time_ended: null } : {}),
+      },
+      { requestKey: null },
+    );
   },
 
   async addTimeToAllSessions(groupId: string, extraMins: number = 5): Promise<void> {

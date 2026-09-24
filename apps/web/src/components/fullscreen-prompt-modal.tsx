@@ -3,16 +3,10 @@
 import { Maximize, ShieldAlert } from "lucide-react";
 
 interface FullscreenPromptModalProps {
-  /** Whether this is the first-time prompt (session just started) or a re-entry prompt after a violation strike. */
   isViolation?: boolean;
   onRequestFullscreen: () => Promise<void>;
 }
 
-/**
- * Blocking overlay that forces the student into fullscreen before they can
- * interact with the exam workspace. It reappears whenever the student exits
- * fullscreen during an active session (anti-cheat violation).
- */
 export function FullscreenPromptModal({ isViolation = false, onRequestFullscreen }: FullscreenPromptModalProps) {
   return (
     <div className="fixed inset-0 z-[60] bg-zinc-950/90 backdrop-blur-md flex items-center justify-center p-4">
@@ -55,10 +49,6 @@ export function FullscreenPromptModal({ isViolation = false, onRequestFullscreen
           <Maximize className="w-4 h-4" />
           Enter Fullscreen
         </button>
-
-        <p className="text-[10px] text-zinc-400 font-mono">
-          Exiting fullscreen during the exam will record an anti-cheat strike.
-        </p>
       </div>
     </div>
   );

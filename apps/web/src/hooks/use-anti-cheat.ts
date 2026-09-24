@@ -14,7 +14,9 @@ interface UseAntiCheatOptions {
 interface UseAntiCheatReturn {
   /** True when the browser is currently in fullscreen mode. */
   isFullscreen: boolean;
-  /** Call this to programmatically request fullscreen (used by the prompt modal). */
+  /** True if the student has entered fullscreen at least once during this session. */
+  hasEnteredFullscreen: boolean;
+  /** Call this to programmatically request fullscreen. */
   requestFullscreen: () => Promise<void>;
 }
 
@@ -28,8 +30,6 @@ export function useAntiCheat({
   const strikeRef = useRef(strikeCount);
   const isProcessingRef = useRef(false);
   const callbackRef = useRef(onStrikeRecorded);
-  // True only when the student copied/cut text while this window was focused.
-  // Reset whenever focus is lost so any subsequent paste is treated as external.
   const copiedInThisWindowRef = useRef(false);
 
   // Track whether the document is currently in fullscreen.
@@ -37,29 +37,47 @@ export function useAntiCheat({
     typeof document !== "undefined" ? !!document.fullscreenElement : false,
   );
 
+  // Track if fullscreen was ever entered during this session.
+  const [hasEnteredFullscreen, setHasEnteredFullscreen] = useState<boolean>(false);
+  const hasEnteredFullscreenRef = useRef<boolean>(false);
+
   useEffect(() => {
     strikeRef.current = strikeCount;
     callbackRef.current = onStrikeRecorded;
   }, [strikeCount, onStrikeRecorded]);
 
-  // ── Fullscreen state tracker ──────────────────────────────────────────────
-  useEffect(() => {
-    const onFsChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener("fullscreenchange", onFsChange);
-    return () => document.removeEventListener("fullscreenchange", onFsChange);
-  }, []);
-
   const requestFullscreen = useCallback(async () => {
-    if (!document.fullscreenElement) {
-      await document.documentElement.requestFullscreen({ navigationUI: "hide" }).catch(() => {
-        /* User denied or browser doesn't support — handled by the modal */
-      });
+    if (typeof document !== "undefined" && !document.fullscreenElement) {
+      try {
+        await document.documentElement.requestFullscreen({ navigationUI: "hide" });
+      } catch (err) {
+        console.warn("Fullscreen request rejected or failed:", err);
+      }
     }
   }, []);
 
-  // ── Anti-cheat event listeners ────────────────────────────────────────────
+  // ── Always sync fullscreen status with browser state ─────────────────────
+  useEffect(() => {
+    const handleFsChange = () => {
+      const inFs = typeof document !== "undefined" && !!document.fullscreenElement;
+      setIsFullscreen(inFs);
+
+      if (inFs) {
+        hasEnteredFullscreenRef.current = true;
+        setHasEnteredFullscreen(true);
+      }
+    };
+
+    if (typeof document !== "undefined") {
+      setIsFullscreen(!!document.fullscreenElement);
+      document.addEventListener("fullscreenchange", handleFsChange);
+      return () => {
+        document.removeEventListener("fullscreenchange", handleFsChange);
+      };
+    }
+  }, []);
+
+  // ── Anti-cheat event listeners (Active during active session) ────────────
   useEffect(() => {
     if (!enabled || !sessionId || status !== "active") return;
 
@@ -82,83 +100,99 @@ export function useAntiCheat({
       }
     };
 
-    // ── Fullscreen exit → strike ─────────────────────────────────────────
+    // Fullscreen exit strike
     const handleFullscreenChange = () => {
-      if (!document.fullscreenElement) {
-        triggerStrike("Exited fullscreen mode during active exam");
+      const inFs = !!document.fullscreenElement;
+      setIsFullscreen(inFs);
+
+      if (inFs) {
+        hasEnteredFullscreenRef.current = true;
+        setHasEnteredFullscreen(true);
+      } else {
+        if (hasEnteredFullscreenRef.current) {
+          triggerStrike("Exited fullscreen mode during active exam");
+        }
       }
     };
 
-    // Detect cursor leaving the top of the browser viewport into tabs/address bar
     const handleMouseLeave = (e: MouseEvent) => {
+      if (!document.fullscreenElement) return;
+
       if (e.clientY <= 0) {
         triggerStrike("Cursor hovered over browser tabs / address bar");
         return;
       }
 
-      // Cursor exited side/bottom boundaries
       if (!e.relatedTarget) {
         triggerStrike("Cursor exited the exam viewport boundary");
       }
     };
 
     const handleBlur = () => {
-      // Any text copied after the window loses focus is untrusted.
+      if (!document.fullscreenElement) return;
+
       copiedInThisWindowRef.current = false;
       triggerStrike("Exam window lost focus");
     };
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        // Tab switched — clipboard content is now untrusted.
+        if (!document.fullscreenElement) return;
+
         copiedInThisWindowRef.current = false;
         triggerStrike("Tab switched or browser minimized");
       }
     };
 
     const handleContextMenu = (e: MouseEvent) => {
+      if (!document.fullscreenElement) return;
+
       e.preventDefault();
       triggerStrike("Right-click context menu opened");
     };
 
-    // ── Clipboard trust tracking ──────────────────────────────────────────────
-    // Copy or cut within this window → mark clipboard as "trusted".
     const handleCopy = () => {
       copiedInThisWindowRef.current = true;
     };
+
     const handleCut = () => {
       copiedInThisWindowRef.current = true;
     };
 
-    // Paste → only allow if content was copied from this same window.
-    // This also catches right-click → Paste, not just Ctrl+V.
     const handlePaste = (e: ClipboardEvent) => {
+      if (!document.fullscreenElement) return;
+
       if (!copiedInThisWindowRef.current) {
         e.preventDefault();
         triggerStrike("Paste from external source detected");
       } else {
-        // Consume the trust token — require a fresh copy for the next paste.
         copiedInThisWindowRef.current = false;
       }
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!document.fullscreenElement) return;
+
       const isCmdOrCtrl = e.metaKey || e.ctrlKey;
 
-      // Block F12 — opens browser DevTools
       if (e.key === "F12") {
         e.preventDefault();
         triggerStrike("DevTools shortcut (F12) pressed");
         return;
       }
 
-      // Block Ctrl+B / Cmd+B — opens browser built-in AI / sidebar
       if (isCmdOrCtrl && e.key === "b") {
         e.preventDefault();
         triggerStrike("Browser AI sidebar shortcut (Ctrl+B) pressed");
         return;
       }
     };
+
+    if (document.fullscreenElement) {
+      hasEnteredFullscreenRef.current = true;
+      setHasEnteredFullscreen(true);
+      setIsFullscreen(true);
+    }
 
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     document.documentElement.addEventListener("mouseleave", handleMouseLeave);
@@ -183,5 +217,5 @@ export function useAntiCheat({
     };
   }, [sessionId, enabled, status]);
 
-  return { isFullscreen, requestFullscreen };
+  return { isFullscreen, hasEnteredFullscreen, requestFullscreen };
 }

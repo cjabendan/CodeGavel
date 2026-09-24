@@ -3,6 +3,7 @@
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { examService } from "@/lib/services/exam-services";
 import "@xterm/xterm/css/xterm.css";
 
 export interface TerminalOutputRef {
@@ -11,13 +12,34 @@ export interface TerminalOutputRef {
 
 interface TerminalOutputProps {
   code: string;
+  sessionId?: string;
 }
 
-export const TerminalOutput = forwardRef<TerminalOutputRef, TerminalOutputProps>(({ code }, ref) => {
+function cleanTerminalOutput(raw: string): string {
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: Terminal output cleaning requires matching ANSI escape codes and ASCII control characters
+  const ansiControlRegex = /\x1b\][^\x07\x1b]*(\x07|\x1b\\)|\x1b\[[0-?]*[ -/]*[@-~]|\x1b[@-Z\\-_]|[\x00-\x09\x0B-\x1F\x7F]/g;
+
+  return raw
+    .replace(ansiControlRegex, "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "")
+    .replace(/\[Process exited\]/g, "")
+    .trim();
+}
+
+export const TerminalOutput = forwardRef<TerminalOutputRef, TerminalOutputProps>(({ code, sessionId }, ref) => {
   const terminalContainerRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<WebSocket | null>(null);
   const termRef = useRef<Terminal | null>(null);
   const isUnmountingRef = useRef(false);
+
+  // Output buffer for capturing total output stream
+  const outputBufferRef = useRef<string>("");
+  const sessionIdRef = useRef<string | undefined>(sessionId);
+
+  useEffect(() => {
+    sessionIdRef.current = sessionId;
+  }, [sessionId]);
 
   const [isConnected, setIsConnected] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
@@ -43,8 +65,16 @@ export const TerminalOutput = forwardRef<TerminalOutputRef, TerminalOutputProps>
         const payload = JSON.parse(event.data);
         if (payload.type === "output") {
           termRef.current?.write(payload.data);
+          // Accumulate raw terminal output chunks into local buffer
+          outputBufferRef.current += payload.data;
         } else if (payload.type === "exit") {
           setIsExecuting(false);
+
+          // Save accumulated output to PocketBase upon execution completion
+          if (sessionIdRef.current) {
+            const cleanOutput = cleanTerminalOutput(outputBufferRef.current);
+            examService.saveTerminalOutput(sessionIdRef.current, cleanOutput);
+          }
         }
       } catch {
         termRef.current?.write(event.data);
@@ -121,6 +151,15 @@ export const TerminalOutput = forwardRef<TerminalOutputRef, TerminalOutputProps>
   const executeCode = () => {
     if (socketRef.current?.readyState === WebSocket.OPEN && termRef.current) {
       setIsExecuting(true);
+
+      // Reset buffer for new execution run
+      outputBufferRef.current = "";
+
+      // Notify PocketBase session state
+      if (sessionIdRef.current) {
+        examService.runCode(sessionIdRef.current, code);
+      }
+
       termRef.current.clear();
       termRef.current.writeln("\x1b[33mCompiling and running...\x1b[0m\r\n");
       socketRef.current.send(

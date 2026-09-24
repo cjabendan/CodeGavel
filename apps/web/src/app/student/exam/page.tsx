@@ -9,7 +9,7 @@ import { ExamStatusOverlay } from "@/components/exam-status-overlay";
 import { FullscreenPromptModal } from "@/components/fullscreen-prompt-modal";
 import { ProblemDescription } from "@/components/problem-description";
 import { ExamHeader } from "@/components/student/student-header";
-import { TerminalOutput, type TerminalOutputRef } from "@/components/terminal-output"; // <-- Updated import
+import { TerminalOutput, type TerminalOutputRef } from "@/components/terminal-output";
 import { useAntiCheat } from "@/hooks/use-anti-cheat";
 import { pb } from "@/lib/pocketbase";
 import { type ExamSession, examService } from "@/lib/services/exam-services";
@@ -32,17 +32,17 @@ function ExamWorkspaceContent() {
   const [isStarting, setIsStarting] = useState(false);
   const [startError, setStartError] = useState("");
   const [showCountdown, setShowCountdown] = useState(false);
+  const [showJoinFullscreenPrompt, setShowJoinFullscreenPrompt] = useState(false);
   const [isOverlayDismissed, setIsOverlayDismissed] = useState(false);
 
   const workspaceBoxRef = useRef<HTMLDivElement>(null);
-  const terminalRef = useRef<TerminalOutputRef>(null); // <-- Added Terminal Ref
+  const terminalRef = useRef<TerminalOutputRef>(null);
 
   const sessionRef = useRef<ExamSession | null>(null);
   useEffect(() => {
     sessionRef.current = session;
   }, [session]);
 
-  // Reset overlay dismissal when session status updates
   useEffect(() => {
     if (session?.status) {
       setIsOverlayDismissed(false);
@@ -83,7 +83,7 @@ function ExamWorkspaceContent() {
 
   const antiCheatEnabled = !!session?.expand?.group?.anti_cheat_enabled;
 
-  const { isFullscreen, requestFullscreen } = useAntiCheat({
+  const { isFullscreen, hasEnteredFullscreen, requestFullscreen } = useAntiCheat({
     sessionId: session?.id || sessionIdParam,
     enabled: antiCheatEnabled,
     status: session?.status || "",
@@ -93,12 +93,9 @@ function ExamWorkspaceContent() {
     },
   });
 
-  // Show the fullscreen prompt whenever anti-cheat is on, the session is
-  // active, and the browser is not in fullscreen (initial entry or violation).
+  // Prompt displayed during active workspace if screen exits fullscreen
   const showFullscreenPrompt = antiCheatEnabled && session?.status === "active" && !isFullscreen;
-
-  // Whether this is a re-entry prompt (student already entered FS once and left).
-  const isFullscreenViolation = showFullscreenPrompt && session !== null;
+  const isFullscreenViolation = showFullscreenPrompt && hasEnteredFullscreen;
 
   const handleTimeout = useCallback(async () => {
     const curSession = sessionRef.current;
@@ -140,6 +137,15 @@ function ExamWorkspaceContent() {
     if (!trimmedName || !groupCodeParam) return;
 
     setStartError("");
+
+    // If browser is NOT in fullscreen, show the fullscreen prompt modal first
+    if (!isFullscreen) {
+      setShowJoinFullscreenPrompt(true);
+      return;
+    }
+
+    // If browser IS in fullscreen, start the countdown overlay
+    setShowJoinFullscreenPrompt(false);
     setShowCountdown(true);
   };
 
@@ -202,7 +208,6 @@ function ExamWorkspaceContent() {
     }, 1500);
   };
 
-  // Updated Run Code Handler to trigger WS Interactive execution
   const handleRunCode = async () => {
     const curId = session?.id || sessionIdParam;
     if (!curId || session?.status !== "active") return;
@@ -261,9 +266,7 @@ function ExamWorkspaceContent() {
     if (!config) return null;
 
     return (
-      <div
-        className={`px-4 py-3.5 border-b text-xs font-mono flex items-center justify-between transition-all ${config.bg}`}
-      >
+      <div className={`px-4 py-3.5 border-b text-xs font-mono flex items-center justify-between transition-all ${config.bg}`}>
         <div className="flex items-center gap-2.5">
           {config.icon}
           <span className="font-medium">{config.text}</span>
@@ -280,6 +283,7 @@ function ExamWorkspaceContent() {
     );
   }
 
+  // ── Initial Join Form Screen ──────────────────────────────────────────────
   if (!session) {
     return (
       <div className="min-h-screen bg-zinc-100 flex items-center justify-center p-4">
@@ -337,10 +341,22 @@ function ExamWorkspaceContent() {
             </button>
           </form>
         </div>
+
+        {/* Fullscreen Prompt shown if student clicks Start while not in fullscreen */}
+        {showJoinFullscreenPrompt && !isFullscreen && (
+          <FullscreenPromptModal
+            isViolation={false}
+            onRequestFullscreen={async () => {
+              await requestFullscreen();
+              setShowJoinFullscreenPrompt(false);
+            }}
+          />
+        )}
       </div>
     );
   }
 
+  // ── Active Workspace Screen ───────────────────────────────────────────────
   return (
     <div ref={workspaceBoxRef} className="h-screen flex flex-col bg-zinc-100 font-sans overflow-hidden">
       <ExamHeader
@@ -364,14 +380,14 @@ function ExamWorkspaceContent() {
           </div>
 
           <div className="flex-[35] overflow-hidden">
-            <TerminalOutput ref={terminalRef} code={code} />
+            <TerminalOutput ref={terminalRef} code={code} sessionId={session?.id || sessionIdParam} />
           </div>
         </div>
       </main>
 
       {!isOverlayDismissed && <ExamStatusOverlay status={session.status} onClose={() => setIsOverlayDismissed(true)} />}
 
-      {/* Fullscreen enforcement — rendered on top of everything else (z-[60]) */}
+      {/* Fullscreen enforcement modal in workspace (shown when fullscreen is exited mid-exam) */}
       {showFullscreenPrompt && (
         <FullscreenPromptModal isViolation={isFullscreenViolation} onRequestFullscreen={requestFullscreen} />
       )}

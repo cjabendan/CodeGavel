@@ -50,7 +50,12 @@ export function LiveSessionTable({ sessions, roomCode, onInspect, onRefresh }: L
                   <tr key={session.id} className="hover:bg-zinc-50/80 transition-colors">
                     <td className="px-6 py-4 font-semibold text-zinc-900">{session.student_name}</td>
                     <td className="px-6 py-4 font-mono text-zinc-600">
-                      {session.expand?.assigned_problem?.title || session.assigned_problem || "Unassigned"}
+                      <span
+                        className="block max-w-[220px] truncate"
+                        title={session.expand?.assigned_problem?.title || session.assigned_problem || "Unassigned"}
+                      >
+                        {session.expand?.assigned_problem?.title || session.assigned_problem || "Unassigned"}
+                      </span>
                     </td>
                     <td className="px-6 py-4">
                       <span
@@ -83,9 +88,7 @@ export function LiveSessionTable({ sessions, roomCode, onInspect, onRefresh }: L
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() =>
-                          adminService.addStudentTime(session.id, 5).then(() => onRefresh?.())
-                        }
+                        onClick={() => adminService.addStudentTime(session.id, 5).then(() => onRefresh?.())}
                         className="px-2 text-zinc-600 h-8"
                         title="+5 Minutes"
                       >

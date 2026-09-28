@@ -121,8 +121,7 @@ export const adminService = {
   async addStudentTime(sessionId: string, extraMins: number) {
     const session = await pb.collection("exam_sessions").getOne<ExamSession>(sessionId, { requestKey: null });
 
-    // Terminal statuses that should not be reopened by adding time.
-    const isTerminal = session.status === "submitted";
+    const isTerminal = session.status === "submitted" || session.status === "locked_strike";
 
     if (isTerminal) {
       // Only extend the time limit — do not change anything else for submitted sessions.

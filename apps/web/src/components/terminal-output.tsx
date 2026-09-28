@@ -16,8 +16,9 @@ interface TerminalOutputProps {
 }
 
 function cleanTerminalOutput(raw: string): string {
-  // biome-ignore lint/suspicious/noControlCharactersInRegex: Terminal output cleaning requires matching ANSI escape codes and ASCII control characters
-  const ansiControlRegex = /\x1b\][^\x07\x1b]*(\x07|\x1b\\)|\x1b\[[0-?]*[ -/]*[@-~]|\x1b[@-Z\\-_]|[\x00-\x09\x0B-\x1F\x7F]/g;
+  
+// biome-ignore lint/suspicious/noControlCharactersInRegex: Terminal output cleaning requires matching ANSI escape codes and ASCII control characters
+const ansiControlRegex = /\x1b\][^\x07\x1b]*(\x07|\x1b\\)|\x1b\[[0-?]*[ -/]*[@-~]|\x1b[@-Z\\-_]|[\x00-\x09\x0B-\x1F\x7F]/g;
 
   return raw
     .replace(ansiControlRegex, "")
@@ -112,6 +113,7 @@ export const TerminalOutput = forwardRef<TerminalOutputRef, TerminalOutputProps>
       cursorBlink: true,
       fontSize: 13,
       fontFamily: "monospace",
+      convertEol: true, // Automatically handle \n -> \r\n in xterm
       theme: { background: "#09090b", foreground: "#f4f4f5" },
     });
 

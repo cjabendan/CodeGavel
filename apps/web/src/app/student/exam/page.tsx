@@ -283,7 +283,7 @@ function ExamWorkspaceContent() {
     );
   }
 
-  // ── Initial Join Form Screen ──────────────────────────────────────────────
+  // Initial Join Form Screen
   if (!session) {
     return (
       <div className="min-h-screen bg-zinc-100 flex items-center justify-center p-4">

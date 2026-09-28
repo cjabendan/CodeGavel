@@ -11,6 +11,38 @@ const GCC_PATH = process.env.GCC_PATH || "gcc";
 const BASE_TEMP_DIR = path.join(os.tmpdir(), "code_runner_sessions");
 const MAX_AGE_MS = 10 * 60 * 1000; // Delete directories older than 10 minutes
 
+// Helper to remove directory and file paths from compilation errors
+function sanitizeErrorMessage(rawError, sourcePath, workDir) {
+  if (!rawError) return "";
+  let cleaned = String(rawError);
+
+  // 1. Remove Node.js child_process shell command failure wrappers
+  cleaned = cleaned.replace(/^Command failed:.*?\r?\n/im, "");
+
+  // 2. Replace absolute file path variants (Windows & Posix) with main.c
+  if (sourcePath) {
+    const normPath = sourcePath.replace(/\\/g, "/");
+    const winPath = sourcePath.replace(/\//g, "\\");
+    cleaned = cleaned.replaceAll(sourcePath, "main.c");
+    cleaned = cleaned.replaceAll(normPath, "main.c");
+    cleaned = cleaned.replaceAll(winPath, "main.c"); // Fixed winDir -> winPath
+  }
+
+  // 3. Remove working directory paths if any remain
+  if (workDir) {
+    const normDir = workDir.replace(/\\/g, "/");
+    const winDir = workDir.replace(/\//g, "\\");
+    cleaned = cleaned.replaceAll(workDir, "");
+    cleaned = cleaned.replaceAll(normDir, "");
+    cleaned = cleaned.replaceAll(winDir, "");
+  }
+
+  // 4. Fix terminal stair-stepping by converting all newlines to CRLF (\r\n)
+  cleaned = cleaned.replace(/\r?\n/g, "\r\n");
+
+  return cleaned.trim();
+}
+
 // Garbage Collector: Removes orphaned session folders
 function pruneStaleDirectories() {
   if (!fs.existsSync(BASE_TEMP_DIR)) return;
@@ -75,10 +107,13 @@ wss.on("connection", (ws) => {
         exec(`"${GCC_PATH}" "${sourcePath}" -o "${execPath}"`, (compileErr, _stdout, stderr) => {
           if (compileErr || stderr) {
             if (ws.readyState === ws.OPEN) {
+              const rawError = stderr || compileErr.message;
+              const cleanError = sanitizeErrorMessage(rawError, sourcePath, currentWorkDir);
+
               ws.send(
                 JSON.stringify({
                   type: "output",
-                  data: `\r\n\x1b[31m${stderr || compileErr.message}\x1b[0m\r\n`,
+                  data: `\r\n\x1b[31m${cleanError}\x1b[0m\r\n`,
                 }),
               );
               ws.send(JSON.stringify({ type: "exit" }));

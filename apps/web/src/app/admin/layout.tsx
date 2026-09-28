@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { pb } from "@/lib/pocketbase";
+import { getPb } from "@/lib/pocketbase";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -14,6 +14,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     setMounted(true);
+
+    // getPb() guarantees the PocketBase instance is created in the browser,
+    // ensuring LocalAuthStore has read the token from localStorage before we
+    // check isValid. Using the module-level `pb` export can be the server-side
+    // null placeholder in production builds and would always appear invalid.
+    const pb = getPb();
 
     const isValid = pb.authStore.isValid;
     const isSystemAdmin =

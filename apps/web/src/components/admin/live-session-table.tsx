@@ -12,7 +12,7 @@ interface LiveSessionTableProps {
   onRefresh?: () => void;
 }
 
-export function LiveSessionTable({ sessions, roomCode, onInspect }: LiveSessionTableProps) {
+export function LiveSessionTable({ sessions, roomCode, onInspect, onRefresh }: LiveSessionTableProps) {
   return (
     <div className="bg-white border border-zinc-200 rounded-2xl shadow-sm overflow-hidden">
       <div className="px-6 py-4 border-b border-zinc-200 flex flex-wrap items-center justify-between gap-4 bg-zinc-50/50">
@@ -50,7 +50,12 @@ export function LiveSessionTable({ sessions, roomCode, onInspect }: LiveSessionT
                   <tr key={session.id} className="hover:bg-zinc-50/80 transition-colors">
                     <td className="px-6 py-4 font-semibold text-zinc-900">{session.student_name}</td>
                     <td className="px-6 py-4 font-mono text-zinc-600">
-                      {session.expand?.assigned_problem?.title || session.assigned_problem || "Unassigned"}
+                      <span
+                        className="block max-w-[220px] truncate"
+                        title={session.expand?.assigned_problem?.title || session.assigned_problem || "Unassigned"}
+                      >
+                        {session.expand?.assigned_problem?.title || session.assigned_problem || "Unassigned"}
+                      </span>
                     </td>
                     <td className="px-6 py-4">
                       <span
@@ -76,14 +81,14 @@ export function LiveSessionTable({ sessions, roomCode, onInspect }: LiveSessionT
                       <span
                         className={`font-mono font-bold ${session.strike_count > 0 ? "text-amber-600" : "text-zinc-400"}`}
                       >
-                        {session.strike_count}
+                        {session.strike_count}/3
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right space-x-2">
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => adminService.addStudentTime(session.id, session.time_limit_min, 5)}
+                        onClick={() => adminService.addStudentTime(session.id, 5).then(() => onRefresh?.())}
                         className="px-2 text-zinc-600 h-8"
                         title="+5 Minutes"
                       >

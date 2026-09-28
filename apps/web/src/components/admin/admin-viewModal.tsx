@@ -33,7 +33,7 @@ export function CodeViewerModal({ session, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 bg-zinc-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="p-3 bg-white border border-zinc-200 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+      <div className="p-3 bg-white border border-zinc-200 rounded-2xl w-full max-w-6xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
         {/* Modal Header */}
         <div className="px-1 py-4 border-b border-zinc-200 flex items-center justify-between bg-zinc-50/50">
           <div className="flex items-center gap-3">
@@ -42,8 +42,8 @@ export function CodeViewerModal({ session, onClose }: Props) {
             </div>
             <div>
               <h3 className="text-sm font-bold text-zinc-900">{session.student_name}</h3>
-              <p className="text-xs text-zinc-500 font-mono">
-                Room: {session.group_code} • Problem: {assignedProblem?.title || "Assigned"}
+              <p className=" truncate text-xs text-zinc-500 font-mono">
+              Problem: {assignedProblem?.title || "Assigned"}
               </p>
             </div>
           </div>
